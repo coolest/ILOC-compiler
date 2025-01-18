@@ -8,85 +8,89 @@
 #include <stack>
 
 const std::unordered_map<std::string, TokenCategory> keyword_category = {
-    {"\n",      TokenCategory::EOL},
-    {"\r\n",    TokenCategory::EOL},
+    {"\n",      TokenCategory::TC_EOL},
+    {"\r\n",    TokenCategory::TC_EOL},
 
-    {"store",   TokenCategory::MEMOP},
-    {"load",    TokenCategory::MEMOP},
+    {"store",   TokenCategory::TC_MEMOP},
+    {"load",    TokenCategory::TC_MEMOP},
 
-    {"sub",     TokenCategory::ARITHOP},
-    {"add",     TokenCategory::ARITHOP},
-    {"lshift",  TokenCategory::ARITHOP},
-    {"rshift",  TokenCategory::ARITHOP},
-    {"mult",    TokenCategory::ARITHOP},
+    {"sub",     TokenCategory::TC_ARITHOP},
+    {"add",     TokenCategory::TC_ARITHOP},
+    {"lshift",  TokenCategory::TC_ARITHOP},
+    {"rshift",  TokenCategory::TC_ARITHOP},
+    {"mult",    TokenCategory::TC_ARITHOP},
 
-    {"loadi",   TokenCategory::LOADI},
+    {"loadi",   TokenCategory::TC_LOADI},
 
-    {"nop",     TokenCategory::NOP},
+    {"nop",     TokenCategory::TC_NOP},
 
-    {"output",  TokenCategory::OUTPUT},
+    {"output",  TokenCategory::TC_OUTPUT},
 
-    {"=>",      TokenCategory::INTO},
+    {"=>",      TokenCategory::TC_INTO},
 };
 
-void Scanner::initialize(){
-    const State t[NUM_STATE][NUM_CHARACTER_CATEGORY] = {
-        { State::ERROR, State::LETTER, State::REGISTER_START, ::OP, State::ERROR }, // INIT
-        { State::ERROR, State::LETTER, State::ERROR, State::ERROR, State::ERROR }, // LETTER
-        { State::ERROR, State::LETTER, State::REGISTER_BODY, State::ERROR, State::ERROR }, // DIGIT
-        { State::ERROR, State::ERROR, State::ERROR, State::OP, State::ERROR }, // OP
-        { State::REGISTER_BODY, State::ERROR, State::ERROR, State::ERROR, State::ERROR }, // REGISTER_START
-        { State::REGISTER_BODY, State::ERROR, State::ERROR, State::ERROR, State::ERROR }, // REGISTER_BODY
-        { State::ERROR, State::ERROR, State::ERROR, State::ERROR, State::ERROR }, // EOF
-        { State::ERROR, State::ERROR, State::ERROR, State::ERROR, State::ERROR }, // EOL
-        { State::ERROR, State::ERROR, State::ERROR, State::ERROR, State::ERROR }, // ERROR
-    };
+const State Scanner::t[NUM_STATE][NUM_CHARACTER_CATEGORY] = {
+    { State::S_ERROR, State::S_LETTER, State::S_REGISTER_START, State::S_OP, State::S_ERROR }, // INIT
+    { State::S_ERROR, State::S_LETTER, State::S_ERROR, State::S_ERROR, State::S_ERROR }, // LETTER
+    { State::S_ERROR, State::S_LETTER, State::S_REGISTER_BODY, State::S_ERROR, State::S_ERROR }, // DIGIT
+    { State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_OP, State::S_ERROR }, // OP
+    { State::S_REGISTER_BODY, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR }, // REGISTER_START
+    { State::S_REGISTER_BODY, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR }, // REGISTER_BODY
+    { State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR }, // EOF
+    { State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR }, // EOL
+    { State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR }, // ERROR
+};
 
-    for (int i = 0; i < 128; i++) char_states[i] = CharacterState::OTHER;
-    
-    char_states['<'] = CharacterState::OP;
-    char_states['='] = CharacterState::OP;
+CharacterState Scanner::char_states[128];
 
-    for (char c = '0'; c <= '9'; c++) char_states[c] = CharacterState::DIGIT;
-
-    for (char c = 'a'; c <= 'z'; c++) char_states[c] = CharacterState::LETTER;
-    for (char c = 'A'; c <= 'Z'; c++) char_states[c] = CharacterState::LETTER;
-}
-
-// comma will be manual, and rDIGITS will also be manual (?)
+bool Scanner::init = false;
 
 Scanner::Scanner(const std::string &f) : fstream{f}, state_history{} {
     if (fstream.fail()){
         std::cerr << "File " << f << " does not exist or cannot be opened!\n";
     }
+
+    if (!init){
+        for (int i = 0; i < 128; i++) char_states[(size_t) i] = CharacterState::CS_OTHER;
+    
+        char_states['<'] = CharacterState::CS_OP;
+        char_states['='] = CharacterState::CS_OP;
+
+        for (char c = '0'; c <= '9'; c++) char_states[(size_t) c] = CharacterState::CS_DIGIT;
+
+        for (char c = 'a'; c <= 'z'; c++) char_states[(size_t) c] = CharacterState::CS_LETTER;
+        for (char c = 'A'; c <= 'Z'; c++) char_states[(size_t) c] = CharacterState::CS_LETTER;
+
+        init = true;
+    }
 }
 
 Token Scanner::Scan(){
     if (fstream.fail()){
-        return Token(TokenCategory::ERROR, "File does not exist or cannot be opened!");
+        return Token(TokenCategory::TC_ERROR, "File does not exist or cannot be opened!");
     } else if (fstream.eof()){
-        return Token(TokenCategory::EOF_TOKEN, "EOF");
+        return Token(TokenCategory::TC_EOF_TOKEN, "EOF");
     }
 
     std::string lexeme;
     char c;
 
-    State current_state = State::INIT;
+    State current_state = State::S_INIT;
 
     while (!state_history.empty()) state_history.pop();
     state_history.push(current_state);
 
-    while (current_state != State::ERROR){
+    while (current_state != State::S_ERROR){
         fstream.get(c);
 
-        CharacterState char_state = char_states[c];
+        CharacterState char_state = char_states[(size_t) c];
         current_state = t[current_state][char_state];
 
         state_history.push(current_state);
         lexeme += c;
     }
 
-    while (current_state == State::ERROR){
+    while (current_state == State::S_ERROR){
         current_state = state_history.top();
         state_history.pop();
 
@@ -94,11 +98,11 @@ Token Scanner::Scan(){
         lexeme.pop_back();
     }
 
-    if (current_state == State::REGISTER_BODY){
-        return Token(TokenCategory::REGISTER, lexeme);
+    if (current_state == State::S_REGISTER_BODY){
+        return Token(TokenCategory::TC_REGISTER, lexeme);
     } else {
         if (!keyword_category.count(lexeme)){
-            return Token(TokenCategory::ERROR, lexeme);
+            return Token(TokenCategory::TC_ERROR, lexeme);
         }
 
         return Token(keyword_category.at(lexeme), lexeme);

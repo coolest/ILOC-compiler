@@ -4,19 +4,42 @@
 #include <stddef.h>
 
 enum TokenCategory {
-    MEMOP, LOADI, ARITHOP, OUTPUT, NOP, CONSTANT, REGISTER, COMMA, INTO, EOF_TOKEN, EOL, ERROR
+    TC_MEMOP, 
+    TC_LOADI, 
+    TC_ARITHOP, 
+    TC_OUTPUT, 
+    TC_NOP, 
+    TC_CONSTANT, 
+    TC_REGISTER, 
+    TC_COMMA, 
+    TC_INTO, 
+    TC_EOF_TOKEN, 
+    TC_EOL, 
+    TC_ERROR
 };
 
 enum CharacterState {
-    DIGIT, LETTER, REGISTER_START, OP, OTHER
+    CS_DIGIT, 
+    CS_LETTER, 
+    CS_REGISTER_START, 
+    CS_OP, 
+    CS_OTHER
 };
 
 enum State {
-    INIT, LETTER, DIGIT, OP, REGISTER_START, REGISTER_BODY, EOF_TOKEN, EOL, ERROR
+    S_INIT, 
+    S_LETTER, 
+    S_DIGIT, 
+    S_OP, 
+    S_REGISTER_START, 
+    S_REGISTER_BODY, 
+    S_EOF_TOKEN, 
+    S_EOL, 
+    S_ERROR
 };
 
-const size_t NUM_TOKEN_CATEGORY = TokenCategory::ERROR + 1;
-const size_t NUM_CHARACTER_CATEGORY = CharacterState::OTHER + 1;
-const size_t NUM_STATE = State::ERROR + 1;
+const size_t NUM_TOKEN_CATEGORY = TokenCategory::TC_ERROR + 1;
+const size_t NUM_CHARACTER_CATEGORY = CharacterState::CS_OTHER + 1;
+const size_t NUM_STATE = State::S_ERROR + 1;
 
 #endif

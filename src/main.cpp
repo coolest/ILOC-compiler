@@ -1,4 +1,5 @@
 #include "flag_dispatcher.hpp"
+#include "scanner.hpp"
 
 #include <iostream>
 #include <string>
