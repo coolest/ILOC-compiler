@@ -11,4 +11,6 @@ struct Token {
     Token(TokenCategory c, const std::string &lex);
 };
 
+void printToken(const Token &t);
+
 #endif

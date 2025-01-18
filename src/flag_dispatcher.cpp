@@ -1,5 +1,7 @@
 
 #include "flag_dispatcher.hpp"
+#include "scanner.hpp"
+#include "token.hpp"
 #include <string>
 #include <iostream>
 
@@ -16,7 +18,18 @@ void FlagDispatch::help(){
 // verify proper file
 
 void FlagDispatch::scan(const std::string &filename){
+    Scanner scanner(filename);
+    
+    cout << "STARTING SCAN: \n";
 
+    Token token = Token(TokenCategory::TC_OUTPUT, "");
+    while (token.category != TokenCategory::TC_EOF_TOKEN){
+        token = scanner.scan();
+
+        printToken(token);
+    }
+
+    cout << "\n";
 };
 
 void FlagDispatch::parse(const std::string &filename){

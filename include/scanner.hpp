@@ -16,7 +16,7 @@ struct Scanner {
     std::stack<State> state_history;
 
     Scanner(const std::string &f);
-    Token Scan();
+    Token scan();
 };
 
 #endif

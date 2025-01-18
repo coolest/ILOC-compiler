@@ -15,7 +15,8 @@ enum TokenCategory {
     TC_INTO, 
     TC_EOF_TOKEN, 
     TC_EOL, 
-    TC_ERROR
+    TC_ERROR,
+    TC_COMMENT
 };
 
 enum CharacterState {
@@ -23,7 +24,8 @@ enum CharacterState {
     CS_LETTER, 
     CS_REGISTER_START, 
     CS_OP, 
-    CS_OTHER
+    CS_OTHER,
+    CS_BACKSLASH,
 };
 
 enum State {
@@ -35,11 +37,13 @@ enum State {
     S_REGISTER_BODY, 
     S_EOF_TOKEN, 
     S_EOL, 
-    S_ERROR
+    S_ERROR,
+    S_COMMENT_START,
+    S_COMMENT,
 };
 
-const size_t NUM_TOKEN_CATEGORY = TokenCategory::TC_ERROR + 1;
-const size_t NUM_CHARACTER_CATEGORY = CharacterState::CS_OTHER + 1;
-const size_t NUM_STATE = State::S_ERROR + 1;
+const size_t NUM_TOKEN_CATEGORY = TokenCategory::TC_COMMENT + 1;
+const size_t NUM_CHARACTER_CATEGORY = CharacterState::CS_BACKSLASH + 1;
+const size_t NUM_STATE = State::S_COMMENT + 1;
 
 #endif
