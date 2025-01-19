@@ -12,6 +12,7 @@ struct Scanner {
     static CharacterState char_states[128];
     static bool init;
 
+    bool eof;
     std::ifstream fstream;
     std::stack<State> state_history;
 

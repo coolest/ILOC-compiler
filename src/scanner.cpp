@@ -31,7 +31,7 @@ const std::unordered_map<std::string, TokenCategory> keyword_category = {
 
 const State Scanner::t[NUM_STATE][NUM_CHARACTER_CATEGORY] = {
     { State::S_DIGIT, State::S_LETTER, State::S_REGISTER_START, State::S_OP, State::S_ERROR, State::S_COMMENT_START }, // INIT
-    { State::S_ERROR, State::S_LETTER, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR }, // LETTER
+    { State::S_ERROR, State::S_LETTER, State::S_LETTER, State::S_ERROR, State::S_ERROR, State::S_ERROR }, // LETTER
     { State::S_DIGIT, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR }, // DIGIT
     { State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_OP, State::S_ERROR, State::S_ERROR }, // OP
     { State::S_REGISTER_BODY, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR }, // REGISTER_START
@@ -47,7 +47,7 @@ CharacterState Scanner::char_states[128];
 
 bool Scanner::init = false;
 
-Scanner::Scanner(const std::string &f) : fstream{f}, state_history{} {
+Scanner::Scanner(const std::string &f) : eof{false}, fstream{f}, state_history{} {
     if (fstream.fail()){
         std::cerr << "File " << f << " does not exist or cannot be opened!\n";
     }
@@ -72,7 +72,7 @@ Scanner::Scanner(const std::string &f) : fstream{f}, state_history{} {
 }
 
 Token Scanner::scan(){
-    if (fstream.eof()){
+    if (fstream.eof() || eof){
         return Token(TokenCategory::TC_EOF_TOKEN, "EOF");
     } else if (fstream.fail()){
         return Token(TokenCategory::TC_ERROR, "File does not exist or cannot be opened!");
@@ -86,28 +86,44 @@ Token Scanner::scan(){
     while (!state_history.empty()) state_history.pop();
     state_history.push(current_state);
 
+    /*
+        Only ignore whitespace at the beginning of a token, SINCE we error at the end/middle of a token
+            Why? because 'lo ad' is not valid.
+
+        Anytime we see a comma and INIT state we immediately return the token-
+            Comma is not a character state
+
+        If we see eof/newline have to manually handle
+            - If INIT state, we return eof/newline token
+            - If comment, we manually handle since comment accepts everything
+            - Otherwise, the other category will error keyword, etc and it will rollback
+    */
+
     while (current_state != State::S_ERROR){
         fstream.get(c);
 
-        if (c == ' '|| c == '\r'){
+        if ((c == ' ' || c == '\r' || c == '\t') && current_state == State::S_INIT){
             continue;
         } else if (c == ',' && current_state == State::S_INIT){
             return Token(TokenCategory::TC_COMMA, ",");
-        } else if (c == '\n' && current_state == State::S_INIT){
-            return Token(TokenCategory::TC_EOL, "EOL");
-        } else if (c == '\n' && current_state == State::S_COMMENT){
-            fstream.putback(c);
+        } else if (c == '\n'){
+            if (current_state == State::S_INIT){
+                return Token(TokenCategory::TC_EOL, "EOL");
+            } else if (current_state == State::S_COMMENT){
+                fstream.putback(c);
 
-            return Token(TokenCategory::TC_COMMENT, lexeme);
-        } else if (c == '\0'){
+                return Token(TokenCategory::TC_COMMENT, lexeme);
+            }
+        } else if (c == '\0' || fstream.eof()){
             if (current_state == State::S_INIT){
                 return Token(TokenCategory::TC_EOF_TOKEN, "EOF");
-            }
+            } else if (current_state == State::S_COMMENT){
+                eof = true;
 
-            current_state = State::S_ERROR;
+                return Token(TokenCategory::TC_COMMENT, lexeme);
+            }
         }
 
-        //std::cout << std::to_string(c) << std::endl;
         CharacterState char_state = char_states[(size_t) c];
         current_state = t[current_state][char_state];
 
@@ -119,8 +135,11 @@ Token Scanner::scan(){
         state_history.pop();
         current_state = state_history.top();
 
-        if (!fstream.eof()) fstream.putback(lexeme.back());
-        lexeme.pop_back();
+        // Don't pop off its a single character ... we would infinite loop nothing -> x -> error -> rollback -> nothing
+        if (current_state != State::S_INIT){
+            if (!fstream.eof()) fstream.putback(lexeme.back());
+            lexeme.pop_back();
+        }
     }
 
     if (current_state == State::S_REGISTER_BODY){
@@ -129,7 +148,7 @@ Token Scanner::scan(){
         return Token(TokenCategory::TC_CONSTANT, lexeme);
     } else {
         if (!keyword_category.count(lexeme)){
-            return Token(TokenCategory::TC_ERROR, lexeme);
+            return Token(TokenCategory::TC_ERROR, "Invalid Keyword: " + lexeme);
         }
 
         return Token(keyword_category.at(lexeme), lexeme);
