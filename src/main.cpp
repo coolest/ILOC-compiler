@@ -15,6 +15,11 @@ int main(int argc, char* argv[]){
         }
 
         return 1;
+    } else if (argc > 3){
+        // we are allowed to handle flags mutually exclusive... if we do ./434fe -s <name> -p, i give it help flag
+        dispatch.help(); // help flag passed
+
+        return 1;
     }
 
     // assuming proper use
