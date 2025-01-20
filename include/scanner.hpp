@@ -12,6 +12,8 @@ struct Scanner {
     static CharacterState char_states[128];
     static bool init;
 
+    int bytes_read;
+    
     char buf[4096 * 2];
     int current_read;
     int i;

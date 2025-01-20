@@ -1,4 +1,5 @@
 #include "parser.hpp"
+#include <memory>
 
 Parser::Parser(const std::string &filename) : scanner{filename}, stats{} {
 

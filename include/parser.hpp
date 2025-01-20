@@ -4,6 +4,7 @@
 #include "scanner.hpp"
 #include "ir.hpp"
 #include "enums.hpp"
+#include <memory>
 
 struct ParserStatistics {
     int errors = 0;

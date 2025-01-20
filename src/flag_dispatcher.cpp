@@ -6,6 +6,7 @@
 #include <string>
 #include <iostream>
 #include <chrono>
+#include <cmath>
 
 using std::cout;
 
@@ -20,7 +21,7 @@ void FlagDispatch::help(){
 
 void FlagDispatch::scan(const std::string &filename){
     std::cout << std::endl;
-    auto perform = [&](bool print){
+    auto perform = [&](bool print) -> int{
         Scanner scanner(filename);
 
         Token token = Token(TokenCategory::TC_OUTPUT, "");
@@ -30,21 +31,40 @@ void FlagDispatch::scan(const std::string &filename){
             if (print) printToken(token);
         }
 
-        std::cout << std::endl;
+        return scanner.bytes_read;
     };
 
     // Printing tokens:
     perform(true);
+    std::cout << std::endl;
 
     // Performance:
     auto start = std::chrono::high_resolution_clock::now();
 
-    perform(false);
+    int bytes_read = perform(false);
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     
-    std::cout << "Takes: " << (double) duration.count() / (double) 1000000 << "s" << std::endl;
+    double seconds = (double) duration.count() / (double) 1000000;
+    std::cout << std::endl;
+    std::cout << "Takes: " << seconds  << " s" << std::endl;
+
+    // Pretty print data/s
+    std::string suffix = " B/s";
+    double data_per_second = (double) bytes_read / seconds;
+    if (data_per_second > std::pow(1024, 3)){
+        data_per_second /= std::pow(1024, 3);
+        suffix = " GB/s";
+    } else if (data_per_second > std::pow(1024, 2)){
+        data_per_second /= std::pow(1024, 2);
+        suffix = " MB/s";
+    } else if (data_per_second > 1024){
+        data_per_second /= 1024;
+        suffix = " KB/s";
+    }
+
+    std::cout << "Approx: " << data_per_second << suffix << std::endl;
 };
 
 void FlagDispatch::parse(const std::string &filename){

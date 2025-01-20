@@ -31,10 +31,10 @@ const std::unordered_map<std::string, TokenCategory> keyword_category = {
 
 const State Scanner::t[NUM_STATE][NUM_CHARACTER_CATEGORY] = {
     { State::S_DIGIT, State::S_LETTER, State::S_REGISTER_START, State::S_OP, State::S_ERROR, State::S_COMMENT_START }, // INIT
-    { State::S_ERROR, State::S_LETTER, State::S_LETTER, State::S_ERROR, State::S_ERROR, State::S_ERROR }, // LETTER
+    { State::S_LETTER, State::S_LETTER, State::S_LETTER, State::S_ERROR, State::S_ERROR, State::S_ERROR }, // LETTER
     { State::S_DIGIT, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR }, // DIGIT
     { State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_OP, State::S_ERROR, State::S_ERROR }, // OP
-    { State::S_REGISTER_BODY, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR }, // REGISTER_START
+    { State::S_REGISTER_BODY, State::S_LETTER, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR }, // REGISTER_START
     { State::S_REGISTER_BODY, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR }, // REGISTER_BODY
     { State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR }, // EOF
     { State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR, State::S_ERROR }, // EOL
@@ -47,7 +47,7 @@ CharacterState Scanner::char_states[128];
 
 bool Scanner::init = false;
 
-Scanner::Scanner(const std::string &f) : current_read{0}, i{0}, eof{false}, fstream{f} {
+Scanner::Scanner(const std::string &f) : bytes_read{0}, current_read{0}, i{0}, eof{false}, fstream{f} {
     if (fstream.fail()){
         std::cerr << "File " << f << " does not exist or cannot be opened!\n";
     }
@@ -72,10 +72,8 @@ Scanner::Scanner(const std::string &f) : current_read{0}, i{0}, eof{false}, fstr
 }
 
 Token Scanner::scan(){
-    if (fstream.eof() || eof){
+    if (eof){
         return Token(TokenCategory::TC_EOF_TOKEN, "EOF");
-    } else if (fstream.fail()){
-        return Token(TokenCategory::TC_EOF_TOKEN, "File does not exist or cannot be opened!");
     }
 
     std::string lexeme;
@@ -106,6 +104,8 @@ Token Scanner::scan(){
             fstream.read(buf, sizeof(buf));
 
             current_read = fstream.gcount();
+            bytes_read += current_read;
+            
             if (current_read == 0) {
                 if (current_state == State::S_INIT){
                     return Token(TokenCategory::TC_EOF_TOKEN, "EOF");
@@ -145,7 +145,7 @@ Token Scanner::scan(){
 
     // Don't pop off its a single character ... we would infinite loop nothing -> x -> error -> rollback -> nothing
     if (history != State::S_INIT){
-        if (!fstream.eof()) i--;
+        i--;
         lexeme.pop_back();
     }
 
