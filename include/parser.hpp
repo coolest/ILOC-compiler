@@ -10,7 +10,7 @@ struct Parser {
 
     IR_Node* parse();
 
-    Parser(const string &filename);
+    Parser(const std::string &filename);
 };
 
 #endif
