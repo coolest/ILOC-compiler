@@ -92,10 +92,12 @@ Token Scanner::scan(){
         Anytime we see a comma and INIT state we immediately return the token-
             Comma is not a character state
 
-        If we see eof/newline have to manually handle
-            - If INIT state, we return eof/newline token
+        If we see newline have to manually handle
+            - If INIT state, we return newline token
             - If comment, we manually handle since comment accepts everything
             - Otherwise, the other category will error keyword, etc and it will rollback
+
+        If we are unable to read into buffer, then we do checks for EOF (similar to newline)
     */
 
     while (current_state != State::S_ERROR){
@@ -141,7 +143,7 @@ Token Scanner::scan(){
         lexeme += c;
     }
 
-     // Don't pop off its a single character ... we would infinite loop nothing -> x -> error -> rollback -> nothing
+    // Don't pop off its a single character ... we would infinite loop nothing -> x -> error -> rollback -> nothing
     if (history != State::S_INIT){
         if (!fstream.eof()) i--;
         lexeme.pop_back();

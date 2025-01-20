@@ -1,6 +1,7 @@
 
 #include "flag_dispatcher.hpp"
 #include "scanner.hpp"
+#include "parser.hpp"
 #include "token.hpp"
 #include <string>
 #include <iostream>
@@ -47,7 +48,18 @@ void FlagDispatch::scan(const std::string &filename){
 };
 
 void FlagDispatch::parse(const std::string &filename){
+    std::cout << std::endl;
 
+    // Performance:
+    auto start = std::chrono::high_resolution_clock::now();
+
+    Parser parser(filename);
+    std::unique_ptr<IR_Node> ir_head = parser.parse(); // Maybe do something with this .. ?
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    
+    std::cout << "Takes: " << (double) duration.count() / (double) 1000000 << "s" << std::endl;
 };
 
 void FlagDispatch::read(const std::string &filename){

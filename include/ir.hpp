@@ -9,6 +9,7 @@ enum IR_FIELD {
 };
 
 enum IR_OP_CODE {
+    IR_ERROR,
     IR_MEMOP, 
     IR_ARITHOP,
     IR_LOADI,
@@ -21,12 +22,10 @@ const size_t NUM_OP_CODES = IR_OP_CODE::IR_OUTPUT + 1;
 
 struct IR {
     IR_OP_CODE op_code;
+    int args[3][NUM_IR_FIELD];
 
-    int arg1[NUM_IR_FIELD];
-    int arg2[NUM_IR_FIELD];
-    int arg3[NUM_IR_FIELD];
-
-    IR(IR_OP_CODE op_code);
+    IR(const IR_OP_CODE op_code);
+    IR();
 };
 
 struct IR_Node {
@@ -35,7 +34,8 @@ struct IR_Node {
     IR_Node* prev;
     IR_Node* next;
 
-    IR_Node(IR ir);
+    IR_Node(const IR &ir);
+    ~IR_Node();
 };
 
 #endif

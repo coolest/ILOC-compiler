@@ -5,10 +5,15 @@
 #include "ir.hpp"
 #include "enums.hpp"
 
+struct ParserStatistics {
+
+};
+
 struct Parser {
     Scanner scanner;
-
-    IR_Node* parse();
+    ParserStatistics stats;
+    
+    std::unique_ptr<IR_Node> parse();
 
     Parser(const std::string &filename);
 };
