@@ -59,6 +59,7 @@ void FlagDispatch::parse(const std::string &filename){
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     
+    std::cout << parser.stats.errors << " errors found." << std::endl;
     std::cout << "Takes: " << (double) duration.count() / (double) 1000000 << "s" << std::endl;
 };
 

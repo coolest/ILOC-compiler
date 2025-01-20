@@ -6,13 +6,13 @@
 #include "enums.hpp"
 
 struct ParserStatistics {
-
+    int errors = 0;
 };
 
 struct Parser {
     Scanner scanner;
     ParserStatistics stats;
-    
+
     std::unique_ptr<IR_Node> parse();
 
     Parser(const std::string &filename);
