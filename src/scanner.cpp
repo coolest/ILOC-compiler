@@ -47,7 +47,7 @@ CharacterState Scanner::char_states[128];
 
 bool Scanner::init = false;
 
-Scanner::Scanner(const std::string &f) : eof{false}, fstream{f}, state_history{} {
+Scanner::Scanner(const std::string &f) : current_read{0}, i{0}, eof{false}, fstream{f} {
     if (fstream.fail()){
         std::cerr << "File " << f << " does not exist or cannot be opened!\n";
     }
@@ -75,16 +75,15 @@ Token Scanner::scan(){
     if (fstream.eof() || eof){
         return Token(TokenCategory::TC_EOF_TOKEN, "EOF");
     } else if (fstream.fail()){
-        return Token(TokenCategory::TC_ERROR, "File does not exist or cannot be opened!");
+        return Token(TokenCategory::TC_EOF_TOKEN, "File does not exist or cannot be opened!");
     }
 
     std::string lexeme;
+
     char c;
 
     State current_state = State::S_INIT;
-
-    while (!state_history.empty()) state_history.pop();
-    state_history.push(current_state);
+    State history = current_state; // Normally a stack, but not necessary for ILOC language
 
     /*
         Only ignore whitespace at the beginning of a token, SINCE we error at the end/middle of a token
@@ -100,7 +99,25 @@ Token Scanner::scan(){
     */
 
     while (current_state != State::S_ERROR){
-        fstream.get(c);
+        // End of buffer
+        if (i == current_read){
+            fstream.read(buf, sizeof(buf));
+
+            current_read = fstream.gcount();
+            if (current_read == 0) {
+                if (current_state == State::S_INIT){
+                    return Token(TokenCategory::TC_EOF_TOKEN, "EOF");
+                } else if (current_state == State::S_COMMENT){
+                    eof = true;
+
+                    return Token(TokenCategory::TC_COMMENT, lexeme);
+                }
+            }
+
+            i = 0;
+        }
+
+        c = buf[i++];
 
         if ((c == ' ' || c == '\r' || c == '\t') && current_state == State::S_INIT){
             continue;
@@ -110,38 +127,27 @@ Token Scanner::scan(){
             if (current_state == State::S_INIT){
                 return Token(TokenCategory::TC_EOL, "EOL");
             } else if (current_state == State::S_COMMENT){
-                fstream.putback(c);
-
-                return Token(TokenCategory::TC_COMMENT, lexeme);
-            }
-        } else if (c == '\0' || fstream.eof()){
-            if (current_state == State::S_INIT){
-                return Token(TokenCategory::TC_EOF_TOKEN, "EOF");
-            } else if (current_state == State::S_COMMENT){
-                eof = true;
+                i--;
 
                 return Token(TokenCategory::TC_COMMENT, lexeme);
             }
         }
 
         CharacterState char_state = char_states[(size_t) c];
+
+        history = current_state;
         current_state = t[current_state][char_state];
 
-        state_history.push(current_state);
         lexeme += c;
     }
 
-    while (current_state == State::S_ERROR){
-        state_history.pop();
-        current_state = state_history.top();
-
-        // Don't pop off its a single character ... we would infinite loop nothing -> x -> error -> rollback -> nothing
-        if (current_state != State::S_INIT){
-            if (!fstream.eof()) fstream.putback(lexeme.back());
-            lexeme.pop_back();
-        }
+     // Don't pop off its a single character ... we would infinite loop nothing -> x -> error -> rollback -> nothing
+    if (history != State::S_INIT){
+        if (!fstream.eof()) i--;
+        lexeme.pop_back();
     }
 
+    current_state = history;
     if (current_state == State::S_REGISTER_BODY){
         return Token(TokenCategory::TC_REGISTER, lexeme);
     } else if (current_state == State::S_DIGIT){

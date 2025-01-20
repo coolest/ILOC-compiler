@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-enum TokenCategory {
+enum TokenCategory : unsigned char {
     TC_MEMOP, 
     TC_LOADI, 
     TC_ARITHOP, 
@@ -19,7 +19,7 @@ enum TokenCategory {
     TC_COMMENT
 };
 
-enum CharacterState {
+enum CharacterState : unsigned char {
     CS_DIGIT, 
     CS_LETTER, 
     CS_REGISTER_START, 
@@ -28,7 +28,7 @@ enum CharacterState {
     CS_BACKSLASH,
 };
 
-enum State {
+enum State : unsigned char {
     S_INIT, 
     S_LETTER, 
     S_DIGIT, 

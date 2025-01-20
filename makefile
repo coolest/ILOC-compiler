@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++11 -Wall -I./include
+CXXFLAGS = -std=c++20 -Wall -I./include -O3 -march=native -flto
 
 # Specify source directory
 SRCDIR = src

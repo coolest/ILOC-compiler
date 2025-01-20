@@ -12,9 +12,12 @@ struct Scanner {
     static CharacterState char_states[128];
     static bool init;
 
+    char buf[4096 * 2];
+    int current_read;
+    int i;
+
     bool eof;
     std::ifstream fstream;
-    std::stack<State> state_history;
 
     Scanner(const std::string &f);
     Token scan();

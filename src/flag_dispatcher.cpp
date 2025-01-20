@@ -4,6 +4,7 @@
 #include "token.hpp"
 #include <string>
 #include <iostream>
+#include <chrono>
 
 using std::cout;
 
@@ -17,18 +18,32 @@ void FlagDispatch::help(){
 };
 
 void FlagDispatch::scan(const std::string &filename){
-    Scanner scanner(filename);
+    std::cout << std::endl;
+    auto perform = [&](bool print){
+        Scanner scanner(filename);
+
+        Token token = Token(TokenCategory::TC_OUTPUT, "");
+        while (token.category != TokenCategory::TC_EOF_TOKEN){
+            token = scanner.scan();
+
+            if (print) printToken(token);
+        }
+
+        std::cout << std::endl;
+    };
+
+    // Printing tokens:
+    perform(true);
+
+    // Performance:
+    auto start = std::chrono::high_resolution_clock::now();
+
+    perform(false);
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     
-    cout << "STARTING SCAN: \n";
-
-    Token token = Token(TokenCategory::TC_OUTPUT, "");
-    while (token.category != TokenCategory::TC_EOF_TOKEN){
-        token = scanner.scan();
-
-        printToken(token);
-    }
-
-    cout << "\n";
+    std::cout << "Takes: " << (double) duration.count() / (double) 1000000 << "s" << std::endl;
 };
 
 void FlagDispatch::parse(const std::string &filename){
