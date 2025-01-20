@@ -1,5 +1,5 @@
 #include "parser.hpp"
-#include <memory>
+#include <iostream>
 
 Parser::Parser(const std::string &filename) : scanner{filename}, stats{} {
 
@@ -7,7 +7,9 @@ Parser::Parser(const std::string &filename) : scanner{filename}, stats{} {
 
 // Helper function for ::parse()
 IR expect_tokens(
-    Scanner &scanner, 
+    Scanner &scanner,
+    int &line,
+
     const IR_OP_CODE op_code,
     const TokenCategory categories[], 
     const uint8_t n
@@ -21,6 +23,10 @@ IR expect_tokens(
             block.op_code = IR_OP_CODE::IR_ERROR; // sentence level error
             block.args[0][0] = categories[i]; // expected
             block.args[0][1] = token.category; // received
+
+            if (token.category == TokenCategory::TC_EOL){
+                line ++;
+            }
 
             break; // do not continue parsing sentence
         } else if (token.category == TokenCategory::TC_CONSTANT || token.category == TokenCategory::TC_REGISTER){
@@ -52,27 +58,40 @@ std::unique_ptr<IR_Node> Parser::parse(){
     std::unique_ptr<IR_Node> head; // Once head is deleted it recursively deletes node->next
     IR_Node* tail = head.get();
 
+    int line = 1;
     while (start.category != TokenCategory::TC_EOF_TOKEN){
+        // Typically lines will be after a sentence, error if they are in between sentences as 'load r1 \n => r2' shouldn't pass
+        if (start.category == TokenCategory::TC_EOL){
+            start = scanner.scan();
+            line ++;
+
+            continue;
+        }
+        
         IR block(IR_OP_CODE::IR_NOP); // Makes switches easier, automatically handles NOP case.
 
         switch(start.category){
             case TokenCategory::TC_ARITHOP:
-                block = expect_tokens(scanner, IR_OP_CODE::IR_ARITHOP, arithop_categories, arithop_n);
+                block = expect_tokens(scanner, line, IR_OP_CODE::IR_ARITHOP, arithop_categories, arithop_n);
                 break;
 
             case TokenCategory::TC_OUTPUT:
-                block = expect_tokens(scanner, IR_OP_CODE::IR_OUTPUT, output_categories, output_n);
+                block = expect_tokens(scanner, line, IR_OP_CODE::IR_OUTPUT, output_categories, output_n);
                 break;
 
             case TokenCategory::TC_MEMOP:
-                block = expect_tokens(scanner, IR_OP_CODE::IR_MEMOP, memop_categories, memop_n);
+                block = expect_tokens(scanner, line, IR_OP_CODE::IR_MEMOP, memop_categories, memop_n);
                 break;
 
             case TokenCategory::TC_LOADI:
-                block = expect_tokens(scanner, IR_OP_CODE::IR_LOADI, loadi_categories, loadi_n);
+                block = expect_tokens(scanner, line, IR_OP_CODE::IR_LOADI, loadi_categories, loadi_n);
                 break;
 
             case TokenCategory::TC_NOP:
+                break;
+
+            // Treat comments as NOP, in middle pass, we can filter out these NOPs
+            case TokenCategory::TC_COMMENT:
                 break;
 
             default:
@@ -83,28 +102,26 @@ std::unique_ptr<IR_Node> Parser::parse(){
         start = scanner.scan();
         if (head == nullptr){
             head = std::make_unique<IR_Node>(block);
+            head->line = line;
+
             tail = head.get();
         } else {
             tail->next = new IR_Node(block);
             tail->next->prev = tail;
 
             tail = tail->next;
+            tail->line = line;
         }
 
         if (block.op_code == IR_OP_CODE::IR_ERROR){
             stats.errors++;
-        }
 
-        // Ignore for now
-        /*
-        if (block.op_code == IR_OP_CODE::IR_ERROR){
             if (block.args[1][0] > 0){ // Indicates a OP level error, start.category > 0 always.
-
+                std::cerr << "Line " << line << ": Expected start of sentence [ARITHOP, OUTPUT, MEMOP, LOADI, NOP], got: " << block.args[1][0] << std::endl;
             } else { // Sentence level error, read args[0][0], args[0][1]
-
+                std::cerr << "Line " << line << ": Expected " << block.args[0][0] << ", got: " << block.args[0][1] << std::endl;
             }
         }
-        */
     }
 
     return head;

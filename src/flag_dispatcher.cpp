@@ -20,7 +20,6 @@ void FlagDispatch::help(){
 };
 
 void FlagDispatch::scan(const std::string &filename){
-    std::cout << std::endl;
     auto perform = [&](bool print) -> int{
         Scanner scanner(filename);
 
@@ -68,8 +67,6 @@ void FlagDispatch::scan(const std::string &filename){
 };
 
 void FlagDispatch::parse(const std::string &filename){
-    std::cout << std::endl;
-
     // Performance:
     auto start = std::chrono::high_resolution_clock::now();
 

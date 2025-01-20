@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <array>
+#include <cstdint>
 
 enum IR_FIELD {
     SR, VR, PR, NE
@@ -30,6 +31,7 @@ struct IR {
 
 struct IR_Node {
     IR ir;
+    uint32_t line;
 
     IR_Node* prev;
     IR_Node* next;
