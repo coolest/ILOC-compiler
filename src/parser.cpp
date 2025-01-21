@@ -87,6 +87,12 @@ IR expect_tokens(
 
     for (int i = 0; i < n; i++){
         Token token = scanner.scan();
+
+        // Put error lexeme in IR- ERROR is not good, but [MEMOP, ARITHOP] (though not like ADD/SUB) is specific enough.
+        if (token.category == TokenCategory::TC_ERROR){
+            block.error_lexeme = std::make_unique<std::string>(token.lexeme);
+        }
+
         if (token.category != categories[i]){
             block.op_code = IR_OP_CODE::IR_ERROR; // sentence level error
             block.args[0][0] = categories[i]; // expected
@@ -167,6 +173,7 @@ std::unique_ptr<IR_Node> Parser::parse(){
 
             default:
                 block.op_code = IR_ERROR;
+                block.error_lexeme = std::make_unique<std::string>(start.lexeme);
                 block.args[1][0] = start.category; // OP level error
         }
 
@@ -192,15 +199,15 @@ std::unique_ptr<IR_Node> Parser::parse(){
             if (block.args[1][0] > 0){ // Indicates a OP level error, start.category > 0 always.
                 std::cerr 
                     << "Line " << line 
-                    << ": Expected start of sentence [ARITHOP, OUTPUT, MEMOP, LOADI, NOP], got: " 
-                    << string_of_token_category_enum(block.args[1][0]) 
+                    << ": Expected start of sentence [ARITHOP, OUTPUT, MEMOP, LOADI, NOP], but got, " 
+                    << (block.error_lexeme ? *block.error_lexeme.get() : string_of_token_category_enum(block.args[1][0]))
                     << std::endl;
             } else { // Sentence level error, read args[0][0], args[0][1]
                 // [TODO] How to transport error lexeme...
                 std::cerr 
                     << "Line " << line 
                     << ": Expected " << string_of_token_category_enum(block.args[0][0]) 
-                    << ", got: " << string_of_token_category_enum(block.args[0][1]) 
+                    << ", but got, " << (block.error_lexeme ? *block.error_lexeme.get() : string_of_token_category_enum(block.args[0][1]))
                     << std::endl;
             }
         }

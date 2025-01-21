@@ -1,10 +1,30 @@
 #include "ir.hpp"
+#include <string.h>
 
 IR::IR(const IR_OP_CODE op_code) : op_code{op_code} {
-    //memset(arg1, 0, sizeof(arg1));
-    //memset(arg2, 0, sizeof(arg2));
-    //memset(arg3, 0, sizeof(arg3));
+    memset(args, 0, sizeof(args));
 };
+
+IR::IR(const IR &other) : op_code{other.op_code} {
+    memcpy(args, other.args, sizeof(args));
+
+    if (other.error_lexeme) {
+        error_lexeme = std::make_unique<std::string>(*other.error_lexeme);
+    }
+}
+
+IR& IR::operator=(const IR& other){
+    op_code = other.op_code;
+    memcpy(args, other.args, sizeof(args));
+
+    if (other.error_lexeme) {
+        error_lexeme = std::make_unique<std::string>(*other.error_lexeme);
+    } else {
+        error_lexeme = nullptr;
+    }
+
+    return *this;
+}
 
 IR::IR() : op_code{IR_OP_CODE::IR_ERROR} {
 
