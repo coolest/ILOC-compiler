@@ -76,6 +76,7 @@ int fast_stoi(const std::string& s, uint8_t i){
 IR expect_tokens(
     Scanner &scanner,
     int &line,
+    bool &reported,
 
     const IR_OP_CODE op_code,
     const TokenCategory categories[], 
@@ -92,6 +93,7 @@ IR expect_tokens(
             block.args[0][1] = token.category; // received
 
             if (token.category == TokenCategory::TC_EOL){
+                reported = false;
                 line ++;
             }
 
@@ -125,10 +127,13 @@ std::unique_ptr<IR_Node> Parser::parse(){
     IR_Node* tail = head.get();
 
     int line = 1;
+    bool reported_line_error = false;
     while (start.category != TokenCategory::TC_EOF_TOKEN){
         // Typically lines will be after a sentence, error if they are in between sentences as 'load r1 \n => r2' shouldn't pass
         if (start.category == TokenCategory::TC_EOL){
             start = scanner.scan();
+
+            reported_line_error = false;
             line ++;
 
             continue;
@@ -138,19 +143,19 @@ std::unique_ptr<IR_Node> Parser::parse(){
 
         switch(start.category){
             case TokenCategory::TC_ARITHOP:
-                block = expect_tokens(scanner, line, IR_OP_CODE::IR_ARITHOP, arithop_categories, arithop_n);
+                block = expect_tokens(scanner, line, reported_line_error, IR_OP_CODE::IR_ARITHOP, arithop_categories, arithop_n);
                 break;
 
             case TokenCategory::TC_OUTPUT:
-                block = expect_tokens(scanner, line, IR_OP_CODE::IR_OUTPUT, output_categories, output_n);
+                block = expect_tokens(scanner, line, reported_line_error, IR_OP_CODE::IR_OUTPUT, output_categories, output_n);
                 break;
 
             case TokenCategory::TC_MEMOP:
-                block = expect_tokens(scanner, line, IR_OP_CODE::IR_MEMOP, memop_categories, memop_n);
+                block = expect_tokens(scanner, line, reported_line_error, IR_OP_CODE::IR_MEMOP, memop_categories, memop_n);
                 break;
 
             case TokenCategory::TC_LOADI:
-                block = expect_tokens(scanner, line, IR_OP_CODE::IR_LOADI, loadi_categories, loadi_n);
+                block = expect_tokens(scanner, line, reported_line_error, IR_OP_CODE::IR_LOADI, loadi_categories, loadi_n);
                 break;
 
             case TokenCategory::TC_NOP:
@@ -179,7 +184,9 @@ std::unique_ptr<IR_Node> Parser::parse(){
             tail->line = line;
         }
 
-        if (block.op_code == IR_OP_CODE::IR_ERROR){
+        // Don't report errors from same line- usually repeat errors are due to the previous
+        if (block.op_code == IR_OP_CODE::IR_ERROR && !reported_line_error){
+            reported_line_error = true;
             stats.errors++;
 
             if (block.args[1][0] > 0){ // Indicates a OP level error, start.category > 0 always.
@@ -189,6 +196,7 @@ std::unique_ptr<IR_Node> Parser::parse(){
                     << string_of_token_category_enum(block.args[1][0]) 
                     << std::endl;
             } else { // Sentence level error, read args[0][0], args[0][1]
+                // [TODO] How to transport error lexeme...
                 std::cerr 
                     << "Line " << line 
                     << ": Expected " << string_of_token_category_enum(block.args[0][0]) 
