@@ -77,7 +77,7 @@ void FlagDispatch::parse(const std::string &filename){
     auto start = std::chrono::high_resolution_clock::now();
 
     Parser parser(filename);
-    std::unique_ptr<IR_Node> ir_head = parser.parse(); // Maybe do something with this .. ?
+    std::unique_ptr<IR_NodePool> ir_head = parser.parse(); // Maybe do something with this .. ?
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);

@@ -90,7 +90,7 @@ IR expect_tokens(
 
         // Put error lexeme in IR- ERROR is not good, but [MEMOP, ARITHOP] (though not like ADD/SUB) is specific enough.
         if (token.category == TokenCategory::TC_ERROR){
-            block.error_lexeme = std::make_unique<std::string>(token.lexeme);
+            block.error_lexeme = std::move(token.lexeme);
         }
 
         if (token.category != categories[i]){
@@ -126,11 +126,11 @@ const uint8_t loadi_n = 3;
 const TokenCategory loadi_categories[] = 
     { TokenCategory::TC_CONSTANT, TokenCategory::TC_INTO, TokenCategory::TC_REGISTER };
 
-std::unique_ptr<IR_Node> Parser::parse(){
+std::unique_ptr<IR_NodePool> Parser::parse(){
     Token start = scanner.scan();
 
-    std::unique_ptr<IR_Node> head; // Once head is deleted it recursively deletes node->next
-    IR_Node* tail = head.get();
+    std::unique_ptr<IR_NodePool> head = std::make_unique<IR_NodePool>(); // Once head is deleted it recursively deletes node->next
+    IR_NodePool* tail = head.get();
 
     int line = 1;
     bool reported_line_error = false;
@@ -173,23 +173,22 @@ std::unique_ptr<IR_Node> Parser::parse(){
 
             default:
                 block.op_code = IR_ERROR;
-                block.error_lexeme = std::make_unique<std::string>(start.lexeme);
+                block.error_lexeme = std::move(start.lexeme);
                 block.args[1][0] = start.category; // OP level error
         }
 
         start = scanner.scan();
-        if (head == nullptr){
-            head = std::make_unique<IR_Node>(block);
-            head->line = line;
-
-            tail = head.get();
-        } else {
-            tail->next = new IR_Node(block);
+        if (tail->i == IR_NodePool::POOL_SIZE){
+            tail->next = new IR_NodePool();
             tail->next->prev = tail;
-
             tail = tail->next;
-            tail->line = line;
+
         }
+
+        IR_Node node(block);
+        node.line = line;
+
+        tail->pool[tail->i++] = node;
 
         // Don't report errors from same line- usually repeat errors are due to the previous
         if (block.op_code == IR_OP_CODE::IR_ERROR && !reported_line_error){
@@ -200,14 +199,13 @@ std::unique_ptr<IR_Node> Parser::parse(){
                 std::cerr 
                     << "Line " << line 
                     << ": Expected start of sentence [ARITHOP, OUTPUT, MEMOP, LOADI, NOP], but got, " 
-                    << (block.error_lexeme ? *block.error_lexeme.get() : string_of_token_category_enum(block.args[1][0]))
+                    << (block.error_lexeme.empty() ? string_of_token_category_enum(block.args[1][0]) : block.error_lexeme)
                     << std::endl;
             } else { // Sentence level error, read args[0][0], args[0][1]
-                // [TODO] How to transport error lexeme...
                 std::cerr 
                     << "Line " << line 
                     << ": Expected " << string_of_token_category_enum(block.args[0][0]) 
-                    << ", but got, " << (block.error_lexeme ? *block.error_lexeme.get() : string_of_token_category_enum(block.args[0][1]))
+                    << ", but got, " << (block.error_lexeme.empty() ? string_of_token_category_enum(block.args[0][1]) : block.error_lexeme)
                     << std::endl;
             }
         }
