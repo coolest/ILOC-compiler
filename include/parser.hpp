@@ -14,7 +14,7 @@ struct Parser {
     Scanner scanner;
     ParserStatistics stats;
 
-    std::unique_ptr<IR_Node> parse();
+    std::unique_ptr<IR_NodePool> parse();
 
     Parser(const std::string &filename);
 };
