@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <array>
+#include <string>
 #include <cstdint>
 #include <memory>
 

@@ -1,5 +1,4 @@
 #include "ir.hpp"
-#include <string.h>
 
 IR::IR(const IR_OP_CODE op_code) : op_code{op_code} {
     memset(args, 0, sizeof(args));
