@@ -6,6 +6,73 @@ Parser::Parser(const std::string &filename) : scanner{filename}, stats{} {
 }
 
 // Helper function for ::parse()
+std::string string_of_token_category_enum(int code){
+    // Whenever error happens in parsing we have EXPECT [token code] RECEIVED [token code]
+    // We will pretty print this to std::out
+
+    std::string result = "ERROR";
+    switch (code){
+        case TokenCategory::TC_MEMOP: 
+            result = "MEMOP"; 
+            break;
+
+        case TokenCategory::TC_LOADI: 
+            result = "LOADI"; 
+            break;
+        
+        case TokenCategory::TC_ARITHOP: 
+            result = "ARITHOP"; 
+            break;
+
+        case TokenCategory::TC_OUTPUT: 
+            result = "OUTPUT"; 
+            break;
+
+        case TokenCategory::TC_NOP: 
+            result = "NOP"; 
+            break;
+
+        case TokenCategory::TC_CONSTANT: 
+            result = "CONSTANT"; 
+            break;
+
+        case TokenCategory::TC_REGISTER: 
+            result = "REGISTER"; 
+            break;
+
+        case TokenCategory::TC_COMMA: 
+            result = "COMMA"; 
+            break;
+
+        case TokenCategory::TC_INTO: 
+            result = "=>"; 
+            break;
+
+        case TokenCategory::TC_EOL: 
+            result = "EOL"; 
+            break;
+
+        case TokenCategory::TC_COMMENT: 
+            result = "COMMENT"; 
+            break;
+    }
+
+    return result;
+}
+
+// Only handles rXXX or XXX, where XXX is a positive integer.
+int fast_stoi(const std::string& s, int i){
+    int num = 0;
+
+    int n = s.size();
+    for (; i < s.size(); i++){
+        num *= 10;
+        num += s[i] - '0'; // Doesn't check if valid string, can assume valid rXXX or XXX
+    }
+
+    return num;
+}
+
 IR expect_tokens(
     Scanner &scanner,
     int &line,
@@ -30,8 +97,7 @@ IR expect_tokens(
 
             break; // do not continue parsing sentence
         } else if (token.category == TokenCategory::TC_CONSTANT || token.category == TokenCategory::TC_REGISTER){
-            block.args[arg_num][IR_FIELD::SR] = 
-                token.category == TokenCategory::TC_CONSTANT ? stoi(token.lexeme) : stoi(token.lexeme.substr(1));
+            block.args[arg_num][IR_FIELD::SR] = fast_stoi(token.lexeme, token.category == TokenCategory::TC_REGISTER);
         }
     }
 
@@ -117,9 +183,17 @@ std::unique_ptr<IR_Node> Parser::parse(){
             stats.errors++;
 
             if (block.args[1][0] > 0){ // Indicates a OP level error, start.category > 0 always.
-                std::cerr << "Line " << line << ": Expected start of sentence [ARITHOP, OUTPUT, MEMOP, LOADI, NOP], got: " << block.args[1][0] << std::endl;
+                std::cerr 
+                    << "Line " << line 
+                    << ": Expected start of sentence [ARITHOP, OUTPUT, MEMOP, LOADI, NOP], got: " 
+                    << string_of_token_category_enum(block.args[1][0]) 
+                    << std::endl;
             } else { // Sentence level error, read args[0][0], args[0][1]
-                std::cerr << "Line " << line << ": Expected " << block.args[0][0] << ", got: " << block.args[0][1] << std::endl;
+                std::cerr 
+                    << "Line " << line 
+                    << ": Expected " << string_of_token_category_enum(block.args[0][0]) 
+                    << ", got: " << string_of_token_category_enum(block.args[0][1]) 
+                    << std::endl;
             }
         }
     }

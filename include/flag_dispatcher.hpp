@@ -4,6 +4,8 @@
 #include <string>
 
 struct FlagDispatch{
+    bool debug_mode = false;
+
     void help();
     void scan(const std::string &filename);
     void parse(const std::string &filename);

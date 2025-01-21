@@ -8,10 +8,25 @@
 #include <chrono>
 #include <cmath>
 
-using std::cout;
+std::string calculate_throughput(int bytes, double seconds){
+    std::string suffix = " B/s";
+    double data_per_second = (double) bytes / seconds;
+    if (data_per_second > std::pow(1024, 3)){
+        data_per_second /= std::pow(1024, 3);
+        suffix = " GB/s";
+    } else if (data_per_second > std::pow(1024, 2)){
+        data_per_second /= std::pow(1024, 2);
+        suffix = " MB/s";
+    } else if (data_per_second > 1024){
+        data_per_second /= 1024;
+        suffix = " KB/s";
+    }
+
+    return std::to_string(data_per_second) + suffix;
+}
 
 void FlagDispatch::help(){
-    cout 
+    std::cout 
         << "434fe -h:\n\t* Prints interactive flags for 434fe\n"
         << "434fe -s <name>:\n\t* Prints, to the standard output stream, a list of the tokens that the scanner found.\n"
         << "434fe -p <name> [DEFAULT FLAG]:\n\t* Scans it and parses it, builds the intermediate representation, and reports either success or all the errors that it finds in the input file.\n"
@@ -34,8 +49,11 @@ void FlagDispatch::scan(const std::string &filename){
     };
 
     // Printing tokens:
-    perform(true);
-    std::cout << std::endl;
+    // Debug mode doesn't exist yet, will add functionality with -d flag, but too hard to deal with all of flags etc.
+    if (debug_mode){
+        perform(true);
+        std::cout << std::endl;
+    }
 
     // Performance:
     auto start = std::chrono::high_resolution_clock::now();
@@ -50,20 +68,8 @@ void FlagDispatch::scan(const std::string &filename){
     std::cout << "Takes: " << seconds  << " s" << std::endl;
 
     // Pretty print data/s
-    std::string suffix = " B/s";
-    double data_per_second = (double) bytes_read / seconds;
-    if (data_per_second > std::pow(1024, 3)){
-        data_per_second /= std::pow(1024, 3);
-        suffix = " GB/s";
-    } else if (data_per_second > std::pow(1024, 2)){
-        data_per_second /= std::pow(1024, 2);
-        suffix = " MB/s";
-    } else if (data_per_second > 1024){
-        data_per_second /= 1024;
-        suffix = " KB/s";
-    }
-
-    std::cout << "Approx: " << data_per_second << suffix << std::endl;
+    const std::string throughput = calculate_throughput(bytes_read, seconds);
+    std::cout << "Approx: " << throughput << std::endl;
 };
 
 void FlagDispatch::parse(const std::string &filename){
@@ -76,8 +82,15 @@ void FlagDispatch::parse(const std::string &filename){
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     
-    std::cout << parser.stats.errors << " errors found." << std::endl;
-    std::cout << "Takes: " << (double) duration.count() / (double) 1000000 << "s" << std::endl;
+    // Print parse statistics and performance
+    // Parser prints errors as it parses (i.e Line X: Expected A but got B)
+    std::cout << parser.stats.errors << " errors found." << std::endl << std::endl;
+
+    double seconds = (double) duration.count() / (double) 1000000;
+    std::cout << "Takes: " << seconds << "s" << std::endl;
+    
+    const std::string throughput = calculate_throughput(parser.scanner.bytes_read, seconds);
+    std::cout << "Approx: " << throughput << std::endl;
 };
 
 void FlagDispatch::read(const std::string &filename){
