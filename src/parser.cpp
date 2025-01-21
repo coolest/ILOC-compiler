@@ -61,11 +61,11 @@ std::string string_of_token_category_enum(int code){
 }
 
 // Only handles rXXX or XXX, where XXX is a positive integer.
-int fast_stoi(const std::string& s, int i){
+int fast_stoi(const std::string& s, uint8_t i){
     int num = 0;
 
-    int n = s.size();
-    for (; i < s.size(); i++){
+    uint8_t n = s.size();
+    for (; i < n; i++){
         num *= 10;
         num += s[i] - '0'; // Doesn't check if valid string, can assume valid rXXX or XXX
     }
