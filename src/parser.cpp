@@ -61,7 +61,7 @@ std::string string_of_token_category_enum(int code){
 }
 
 // Only handles rXXX or XXX, where XXX is a positive integer.
-int fast_stoi(const std::string& s, uint8_t i){
+int fast_stoi(const std::string_view& s, uint8_t i){
     int num = 0;
 
     uint8_t n = s.size();
