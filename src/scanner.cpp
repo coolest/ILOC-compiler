@@ -7,6 +7,12 @@
 #include <iostream>
 #include <stack>
 
+// Helper structure for scanner
+TrieNode::TrieNode() : terminal{false}, category{TokenCategory::TC_ERROR}, state{State::S_ERROR} {
+    memset(next, 0, sizeof(next));
+}
+
+// Scanner
 const std::unordered_map<std::string, TokenCategory> keyword_category = {
     {"\n",      TokenCategory::TC_EOL},
     {"\r\n",    TokenCategory::TC_EOL},
@@ -52,6 +58,7 @@ Scanner::Scanner(const std::string &f) : bytes_read{0}, current_read{0}, i{0}, e
         std::cerr << "File " << f << " does not exist or cannot be opened!\n";
     }
 
+    cache = std::make_unique<TrieNode>();
     if (!init){
         for (int i = 0; i < 128; i++) char_states[(size_t) i] = CharacterState::CS_OTHER;
     
@@ -76,6 +83,7 @@ Token Scanner::scan(){
         return Token(TokenCategory::TC_EOF_TOKEN, "EOF");
     }
 
+    TrieNode* curr_cache = cache.get();
     std::string lexeme;
 
     char c;
@@ -120,6 +128,7 @@ Token Scanner::scan(){
         }
 
         c = buf[i++];
+        history = current_state;
 
         if ((c == ' ' || c == '\r' || c == '\t') && current_state == State::S_INIT){
             continue;
@@ -135,12 +144,24 @@ Token Scanner::scan(){
             }
         }
 
-        CharacterState char_state = char_states[(size_t) c];
+        if (curr_cache->next[c] != nullptr){
+            curr_cache = curr_cache->next[c].get();
 
-        history = current_state;
-        current_state = t[current_state][char_state];
+            current_state = curr_cache->state;
+            lexeme += c;
+        } else {
+            CharacterState char_state = char_states[(size_t) c];
+            current_state = t[current_state][char_state];
 
-        lexeme += c;
+            lexeme += c;
+
+            std::unique_ptr<TrieNode> new_cache = std::make_unique<TrieNode>();
+            new_cache->state = current_state;
+
+            curr_cache->next[c] = std::move(new_cache);
+            curr_cache->next[c]->parent = curr_cache;
+            curr_cache = curr_cache->next[c].get(); // ptr moved
+        }
     }
 
     // Don't pop off its a single character ... we would infinite loop nothing -> x -> error -> rollback -> nothing
@@ -150,15 +171,23 @@ Token Scanner::scan(){
     }
 
     current_state = history;
+    curr_cache = curr_cache->parent;
     if (current_state == State::S_REGISTER_BODY){
         return Token(TokenCategory::TC_REGISTER, lexeme);
     } else if (current_state == State::S_DIGIT){
         return Token(TokenCategory::TC_CONSTANT, lexeme);
-    } else {
-        if (!keyword_category.count(lexeme)){
-            return Token(TokenCategory::TC_ERROR, "Invalid Keyword: " + lexeme);
-        }
-
-        return Token(keyword_category.at(lexeme), lexeme);
     }
+
+    // Keyword
+    if (curr_cache->terminal){
+        return Token(curr_cache->category, lexeme);
+    } else if (!keyword_category.count(lexeme)){
+        return Token(TokenCategory::TC_ERROR, "Invalid Keyword: " + lexeme);
+    }
+
+    TokenCategory category = keyword_category.at(lexeme);
+    curr_cache->category = category;
+    curr_cache->terminal = true;
+
+    return Token(category, lexeme);
 }
