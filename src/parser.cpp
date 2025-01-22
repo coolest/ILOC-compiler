@@ -91,7 +91,6 @@ IR expect_tokens(
         // Put error lexeme in IR- ERROR is not good, but [MEMOP, ARITHOP] (though not like ADD/SUB) is specific enough.
         if (token.category == TokenCategory::TC_ERROR){
             block.error_lexeme = std::move(token.lexeme);
-            block.error_lexeme = std::move(token.lexeme);
         }
 
         if (token.category != categories[i]){
