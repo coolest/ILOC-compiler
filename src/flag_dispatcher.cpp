@@ -93,6 +93,44 @@ void FlagDispatch::parse(const std::string &filename){
     std::cout << "Approx: " << throughput << std::endl;
 };
 
-void FlagDispatch::read(const std::string &filename){
+const std::string ir_op_code_strings[NUM_OP_CODES] = 
+    { "IR_ERROR", "IR_MEMOP", "IR_ARITHOP", "IR_LOADI", "IR_NOP", "IR_OUTPUT" };
+const std::string ir_field_strings[NUM_IR_FIELD] = 
+    { "SR", "VR", "PR", "NE" };
 
+void print_ir(const IR &ir, const int &line){
+    std::cout << ir_op_code_strings[ir.op_code] << " [line " << line << "] ";
+    if (ir.op_code == IR_OP_CODE::IR_ERROR){
+        std::cout << "( " << ir.error_lexeme << " )" << std::endl;
+    } else {
+        for (int i = 0; i < 3; i++){
+            std::cout << std::endl << "arg" << i+1 << ": [" 
+                << ir.args[i][0] << ", "
+                << ir.args[i][1] << ", "
+                << ir.args[i][2] << ", "
+                << ir.args[i][3] << " ]";
+        }
+
+        std::cout << std::endl << std::endl;
+    }
+}
+
+void FlagDispatch::read(const std::string &filename){
+    // Mainly for printing out the IR, not going to profile
+
+    Parser parser(filename);
+    IR_NodePool* ir_head = parser.parse().get();
+
+    while (ir_head){
+        for (int i = 0; i < IR_NodePool::POOL_SIZE; i++){
+            IR_Node node = ir_head->pool[i];
+            if (node.line == 0){
+                break; // End
+            }
+
+            print_ir(node.ir, node.line);
+        }
+
+        ir_head = ir_head->next;
+    }
 };

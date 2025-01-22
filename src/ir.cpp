@@ -8,7 +8,7 @@ IR::IR() : op_code{IR_OP_CODE::IR_ERROR} {
 
 };
 
-IR_Node::IR_Node(const IR& ir) : ir{ir} {
+IR_Node::IR_Node(const IR& ir) : ir{ir}, line{0} {
 
 };
 

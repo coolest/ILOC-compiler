@@ -105,7 +105,7 @@ IR expect_tokens(
 
             break; // do not continue parsing sentence
         } else if (token.category == TokenCategory::TC_CONSTANT || token.category == TokenCategory::TC_REGISTER){
-            block.args[arg_num][IR_FIELD::SR] = fast_stoi(token.lexeme, token.category == TokenCategory::TC_REGISTER);
+            block.args[arg_num++][IR_FIELD::SR] = fast_stoi(token.lexeme, token.category == TokenCategory::TC_REGISTER);
         }
     }
 
@@ -178,6 +178,10 @@ std::unique_ptr<IR_NodePool> Parser::parse() {
         }
 
         start = scanner.scan();
+        if (block.op_code == TokenCategory::TC_NOP){
+            continue; // Do not add any NOP to the IR
+        }
+
         if (tail->i == IR_NodePool::POOL_SIZE){
             tail->next = new IR_NodePool();
             tail->next->prev = tail;
