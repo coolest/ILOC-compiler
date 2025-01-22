@@ -6,6 +6,8 @@
 #include <string>
 #include <fstream>
 #include <stack>
+#include <memory>
+#include <cstring>
 
 /*
     Only a fixed set of characters will be put in this trie, due to the limited grammar of ILOC.
