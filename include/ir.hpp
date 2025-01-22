@@ -6,6 +6,7 @@
 #include <string>
 #include <cstdint>
 #include <memory>
+#include <cstring>
 
 enum IR_FIELD {
     SR, VR, PR, NE
