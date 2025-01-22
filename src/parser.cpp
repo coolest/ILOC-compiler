@@ -126,13 +126,10 @@ const TokenCategory memop_categories[] =
 const uint8_t loadi_n = 3;
 const TokenCategory loadi_categories[] = 
     { TokenCategory::TC_CONSTANT, TokenCategory::TC_INTO, TokenCategory::TC_REGISTER };
-
-std::unique_ptr<IR_NodePool> Parser::parse(){
-std::unique_ptr<IR_NodePool> Parser::parse(){
+    
+std::unique_ptr<IR_NodePool> Parser::parse() {
     Token start = scanner.scan();
 
-    std::unique_ptr<IR_NodePool> head = std::make_unique<IR_NodePool>(); // Once head is deleted it recursively deletes node->next
-    IR_NodePool* tail = head.get();
     std::unique_ptr<IR_NodePool> head = std::make_unique<IR_NodePool>(); // Once head is deleted it recursively deletes node->next
     IR_NodePool* tail = head.get();
 
@@ -178,18 +175,14 @@ std::unique_ptr<IR_NodePool> Parser::parse(){
             default:
                 block.op_code = IR_ERROR;
                 block.error_lexeme = std::move(start.lexeme);
-                block.error_lexeme = std::move(start.lexeme);
                 block.args[1][0] = start.category; // OP level error
         }
 
         start = scanner.scan();
         if (tail->i == IR_NodePool::POOL_SIZE){
             tail->next = new IR_NodePool();
-        if (tail->i == IR_NodePool::POOL_SIZE){
-            tail->next = new IR_NodePool();
             tail->next->prev = tail;
             tail = tail->next;
-
         }
 
         IR_Node node(block);
@@ -207,13 +200,11 @@ std::unique_ptr<IR_NodePool> Parser::parse(){
                     << "Line " << line 
                     << ": Expected start of sentence [ARITHOP, OUTPUT, MEMOP, LOADI, NOP], but got, " 
                     << (block.error_lexeme.empty() ? string_of_token_category_enum(block.args[1][0]) : block.error_lexeme)
-                    << (block.error_lexeme.empty() ? string_of_token_category_enum(block.args[1][0]) : block.error_lexeme)
                     << std::endl;
             } else { // Sentence level error, read args[0][0], args[0][1]
                 std::cerr 
                     << "Line " << line 
                     << ": Expected " << string_of_token_category_enum(block.args[0][0]) 
-                    << ", but got, " << (block.error_lexeme.empty() ? string_of_token_category_enum(block.args[0][1]) : block.error_lexeme)
                     << ", but got, " << (block.error_lexeme.empty() ? string_of_token_category_enum(block.args[0][1]) : block.error_lexeme)
                     << std::endl;
             }
