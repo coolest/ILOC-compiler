@@ -50,7 +50,7 @@ void FlagDispatch::scan(const std::string &filename){
 
     // Printing tokens:
     // Debug mode doesn't exist yet, will add functionality with -d flag, but too hard to deal with all of flags etc.
-    if (debug_mode){
+    if (1){
         perform(true);
         std::cout << std::endl;
     }
