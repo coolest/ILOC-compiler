@@ -146,7 +146,6 @@ std::unique_ptr<IR_NodePool> Parser::parse() {
         }
         
         IR block(IR_OP_CODE::IR_NOP); // Makes switches easier, automatically handles NOP case.
-
         switch(start.category){
             case TokenCategory::TC_ARITHOP:
                 block = expect_tokens(scanner, line, reported_line_error, IR_OP_CODE::IR_ARITHOP, arithop_categories, arithop_n);
@@ -183,7 +182,7 @@ std::unique_ptr<IR_NodePool> Parser::parse() {
         }
 
         start = scanner.scan();
-        if (block.op_code == TokenCategory::TC_NOP){
+        if (block.op_code == IR_OP_CODE::IR_NOP){
             continue; // Do not add any NOP to the IR
         }
 

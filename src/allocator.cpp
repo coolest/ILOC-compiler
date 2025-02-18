@@ -1,19 +1,29 @@
 #include "allocator.hpp"
-#include <vector>
 
+constexpr int INVALID = -1;
 std::unique_ptr<IR_NodePool> Allocator::rename(std::unique_ptr<IR_NodePool> ir_head) {
+    // Start from the back
+    int index = 0; // Global index for last_use
     IR_NodePool* ir = ir_head.get();
-    while (ir->next){
+    while (1) {
+        index += ir->i;
+        if (!ir->next){
+            break;
+        }
+
         ir = ir->next;
     }
 
-    std::vector<int> sr_to_vr;
-    std::vector<int> last_use;
+    // ir is now NULLPTR
+
+    std::unordered_map<int, int> sr_to_vr;
+    std::unordered_map<int, int> last_use;
+    int vr_name = 0;
 
     // Loop through NodePools right to left
     while (ir) {
         // Loop through the node pool
-        for (int i = ir->i; i >= 0; i--){
+        for (int i = ir->i; i >= 0; i--, index--){
             IR &node = ir->pool[i].ir;
 
             bool is_def[3] = {false, false, false};
@@ -50,25 +60,47 @@ std::unique_ptr<IR_NodePool> Allocator::rename(std::unique_ptr<IR_NodePool> ir_h
 
             // As per the algorithm:
 
-            // Defs:
-            for (int j = 0; j < 3; j++) {
-                if (is_def[j]) {
-                    // def logic
+            // Defines
+            for (int arg_num = 0; arg_num < 3; arg_num++) {
+                if (!is_def[arg_num]) {
+                    continue;
                 }
+
+                int sr = node.args[arg_num][IR_FIELD::SR];
+                if (!sr_to_vr.count(sr) || sr_to_vr[sr] == INVALID) {
+                    sr_to_vr[sr] = vr_name++;
+                }
+
+                node.args[arg_num][IR_FIELD::VR] = sr_to_vr[sr];
+                node.args[arg_num][IR_FIELD::NE] = last_use[sr];
+
+                last_use[sr] = INT_MAX;
+                sr_to_vr[sr] = INVALID;
             }
 
-            // Uses:
-            for (int j = 0; j < 2; j++) {
-                if (is_use[j]) {
-                    // use logic
+            // Uses
+            for (int arg_num = 0; arg_num < 2; arg_num++) {
+                if (!is_use[arg_num]) {
+                    continue;
                 }
+
+                int sr = node.args[arg_num][IR_FIELD::SR];
+                if (!sr_to_vr.count(sr) || sr_to_vr[sr] == INVALID) {
+                    sr_to_vr[sr] = vr_name++;
+                }
+
+                node.args[arg_num][IR_FIELD::VR] = sr_to_vr[sr];
+                node.args[arg_num][IR_FIELD::NE] = last_use[sr];
             }
 
-            // LastUse:
-            for (int j = 0; j < 2; j++) {
-                if (is_use[j]) {
-                    // update last use
+            // Last Uses
+            for (int arg_num = 0; arg_num < 2; arg_num++) {
+                if (!is_use[arg_num]) {
+                    continue;
                 }
+
+                int sr = node.args[arg_num][IR_FIELD::SR];
+                last_use[sr] = index; // global index here
             }
         }
 

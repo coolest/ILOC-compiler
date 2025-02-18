@@ -3,7 +3,7 @@
 #include "scanner.hpp"
 #include "parser.hpp"
 #include "token.hpp"
-#include "optimizer.hpp"
+#include "allocator.hpp"
 #include <string>
 #include <iostream>
 #include <chrono>
@@ -96,7 +96,7 @@ void FlagDispatch::parse(const std::string &filename){
 };
 
 const std::string ir_op_code_strings[NUM_OP_CODES] = 
-    { "IR_ERROR", "IR_MEMOP", "IR_ARITHOP", "IR_LOADI", "IR_NOP", "IR_OUTPUT" };
+    { "IR_ERROR", "IR_LOAD", "IR_STORE", "IR_ARITHOP", "IR_LOADI", "IR_NOP", "IR_OUTPUT" };
 const std::string ir_field_strings[NUM_IR_FIELD] = 
     { "SR", "VR", "PR", "NE" };
 
@@ -149,7 +149,7 @@ void FlagDispatch::rename(const std::string &filename) {
     Parser parser(filename);
 
     std::unique_ptr<IR_NodePool> ir =
-        Optimizer::rename( // Perform renaming pass
+        Allocator::rename( // Perform renaming pass
             parser.parse() // Parse into an IR.
         );
 
