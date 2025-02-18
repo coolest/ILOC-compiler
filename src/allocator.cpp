@@ -14,8 +14,6 @@ std::unique_ptr<IR_NodePool> Allocator::rename(std::unique_ptr<IR_NodePool> ir_h
         ir = ir->next;
     }
 
-    // ir is now NULLPTR
-
     std::unordered_map<int, int> sr_to_vr;
     std::unordered_map<int, int> last_use;
     int vr_name = 0;
