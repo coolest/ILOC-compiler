@@ -37,6 +37,10 @@ int main(int argc, char* argv[]){
             dispatch.read(argv[2]);
             break;
 
+        case 'x':
+            dispatch.rename(argv[2]);
+            break;
+
         default:
             std::cerr << "Improper flag used, please use '434fe -h'\n";
     }

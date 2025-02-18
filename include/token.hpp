@@ -7,7 +7,7 @@
 struct Token {
     TokenCategory category;
     std::string lexeme;
-
+    
     Token(TokenCategory c, const std::string &lex);
 };
 

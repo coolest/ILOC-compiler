@@ -5,7 +5,9 @@ CXXFLAGS = -std=c++20 -Wall -I./include -O3 -flto
 SRCDIR = src
 SOURCES = $(wildcard $(SRCDIR)/*.cpp)
 OBJ = $(SOURCES:$(SRCDIR)/%.cpp=%.o)
-EXEC = 434fe
+EXEC = 434alloc
+
+build: $(EXEC)
 
 $(EXEC): $(OBJ)
 	$(CXX) -o $(EXEC) $(OBJ)

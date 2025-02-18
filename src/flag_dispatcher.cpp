@@ -3,6 +3,7 @@
 #include "scanner.hpp"
 #include "parser.hpp"
 #include "token.hpp"
+#include "optimizer.hpp"
 #include <string>
 #include <iostream>
 #include <chrono>
@@ -27,11 +28,12 @@ std::string calculate_throughput(int bytes, double seconds){
 
 void FlagDispatch::help(){
     std::cout 
-        << "434fe -h:\n\t* Prints interactive flags for 434fe\n"
-        << "434fe -s <name>:\n\t* Prints, to the standard output stream, a list of the tokens that the scanner found.\n"
-        << "434fe -p <name> [DEFAULT FLAG]:\n\t* Scans it and parses it, builds the intermediate representation, and reports either success or all the errors that it finds in the input file.\n"
-        << "434fe -s <name>:\n\t* Scans it, parses it, builds the intermediate representation, and prints out the information in the intermediate representation (in an appropriately human readable format).\n\n"
-        << "434fe <flag> IS MUTAUALLY EXCLUSIVE... if more than one flag is passed, you are taken here.\n";
+        << "434alloc -h:\n\t* Prints interactive flags for 434fe\n"
+        << "434alloc -s <name>:\n\t* Prints, to the standard output stream, a list of the tokens that the scanner found.\n"
+        << "434alloc -p <name> [DEFAULT FLAG]:\n\t* Scans it and parses it, builds the intermediate representation, and reports either success or all the errors that it finds in the input file.\n"
+        << "434alloc -r <name>:\n\t* Scans it, parses it, builds the intermediate representation, and prints out the information in the intermediate representation (in an appropriately human readable format).\n"
+        << "434alloc -x <name>:\n\t* Scans it, parses it, builds IR, then performs a renaming pass and builds the IR with the renaming algorithm performed in std::out. \n\n"
+        << "434alloc <flag> IS MUTAUALLY EXCLUSIVE... if more than one flag is passed, you are taken here.\n";
 };
 
 void FlagDispatch::scan(const std::string &filename){
@@ -115,12 +117,7 @@ void print_ir(const IR &ir, const int &line){
     }
 }
 
-void FlagDispatch::read(const std::string &filename){
-    // Mainly for printing out the IR, not going to profile
-
-    Parser parser(filename);
-    IR_NodePool* ir_head = parser.parse().get();
-
+void print_all_ir(IR_NodePool* ir_head) {
     while (ir_head){
         for (int i = 0; i < IR_NodePool::POOL_SIZE; i++){
             IR_Node node = ir_head->pool[i];
@@ -133,4 +130,26 @@ void FlagDispatch::read(const std::string &filename){
 
         ir_head = ir_head->next;
     }
+}
+
+void FlagDispatch::read(const std::string &filename){
+    // Mainly for printing out the IR, not going to profile
+
+    Parser parser(filename);
+    IR_NodePool* ir_head = parser.parse().get();
+
+    print_all_ir(ir_head);
 };
+
+// LAB 2
+
+void FlagDispatch::rename(const std::string &filename) {
+    Parser parser(filename);
+
+    std::unique_ptr<IR_NodePool> ir =
+        Optimizer::rename( // Perform renaming pass
+            parser.parse() // Parse into an IR.
+        );
+
+    print_all_ir(ir.get());
+}
