@@ -117,7 +117,9 @@ void print_ir(const IR &ir, const int &line){
     }
 }
 
-void print_all_ir(IR_NodePool* ir_head) {
+void print_all_ir(std::unique_ptr<IR_NodePool> ir) {
+    IR_NodePool* ir_head = ir.get();
+
     while (ir_head){
         for (int i = 0; i < IR_NodePool::POOL_SIZE; i++){
             IR_Node node = ir_head->pool[i];
@@ -136,9 +138,9 @@ void FlagDispatch::read(const std::string &filename){
     // Mainly for printing out the IR, not going to profile
 
     Parser parser(filename);
-    IR_NodePool* ir_head = parser.parse().get();
+    std::unique_ptr<IR_NodePool> ir = parser.parse();
 
-    print_all_ir(ir_head);
+    print_all_ir(std::move(ir));
 };
 
 // LAB 2
@@ -151,5 +153,5 @@ void FlagDispatch::rename(const std::string &filename) {
             parser.parse() // Parse into an IR.
         );
 
-    print_all_ir(ir.get());
+    print_all_ir(std::move(ir));
 }
