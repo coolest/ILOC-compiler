@@ -145,13 +145,57 @@ void FlagDispatch::read(const std::string &filename){
 
 // LAB 2
 
+const std::string arith_op_strings[] = {"add", "sub", "mult", "lshift", "rshift"};
 void FlagDispatch::rename(const std::string &filename) {
     Parser parser(filename);
 
-    std::unique_ptr<IR_NodePool> ir =
+    std::unique_ptr<IR_NodePool> ir_nodepool =
         Allocator::rename( // Perform renaming pass
             parser.parse() // Parse into an IR.
         );
 
-    print_all_ir(std::move(ir));
+    IR_NodePool* ir_raw_nodepool = ir_nodepool.get();
+    while (ir_raw_nodepool) {
+        for (int i = 0; i < ir_raw_nodepool->i; i++){
+            IR &ir = ir_raw_nodepool->pool[i].ir;
+
+            switch(ir.op_code) {
+                case IR_OP_CODE::IR_ARITHOP:
+                    std::cout << arith_op_strings[ir.arith_op] << " vr" 
+                            << ir.args[0][IR_FIELD::VR] << ", vr"
+                            << ir.args[1][IR_FIELD::VR] << " => vr"
+                            << ir.args[2][IR_FIELD::VR];
+                    break;
+                
+                case IR_OP_CODE::IR_LOAD:
+                    std::cout << "load vr" 
+                            << ir.args[0][IR_FIELD::VR] << " => vr"
+                            << ir.args[1][IR_FIELD::VR];
+                    break;
+                    
+                case IR_OP_CODE::IR_STORE:
+                    std::cout << "store vr"
+                            << ir.args[0][IR_FIELD::VR] << " => vr"
+                            << ir.args[1][IR_FIELD::VR];
+                    break;
+                    
+                case IR_OP_CODE::IR_LOADI:
+                    std::cout << "loadI "
+                            << ir.args[0][IR_FIELD::SR] << " => vr"
+                            << ir.args[1][IR_FIELD::VR];
+                    break;
+                    
+                case IR_OP_CODE::IR_OUTPUT:
+                    std::cout << "output " << ir.args[0][IR_FIELD::SR];
+                    break;
+                    
+                default:
+                    break;
+            }
+            
+            std::cout << std::endl;
+        }
+
+        ir_raw_nodepool = ir_raw_nodepool->next;
+    }
 }

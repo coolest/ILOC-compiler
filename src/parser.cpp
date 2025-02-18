@@ -147,9 +147,25 @@ std::unique_ptr<IR_NodePool> Parser::parse() {
         
         IR block(IR_OP_CODE::IR_NOP); // Makes switches easier, automatically handles NOP case.
         switch(start.category){
-            case TokenCategory::TC_ARITHOP:
+            case TokenCategory::TC_ARITHOP: {
+                IR_ARITH_OP arith_op;
+                char begin_char = start.lexeme[0];
+                if (begin_char == 'a') {
+                    arith_op = IR_ADD;
+                } else if (begin_char == 's') {
+                    arith_op = IR_SUB;
+                } else if (begin_char == 'm') {
+                    arith_op = IR_MULT;
+                } else if (begin_char == 'l') {
+                    arith_op = IR_LSHIFT;
+                } else {
+                    arith_op = IR_RSHIFT;
+                }
+
                 block = expect_tokens(scanner, line, reported_line_error, IR_OP_CODE::IR_ARITHOP, arithop_categories, arithop_n);
+                block.arith_op = arith_op;
                 break;
+            }
 
             case TokenCategory::TC_OUTPUT:
                 block = expect_tokens(scanner, line, reported_line_error, IR_OP_CODE::IR_OUTPUT, output_categories, output_n);

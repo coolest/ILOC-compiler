@@ -22,6 +22,14 @@ enum IR_OP_CODE {
     IR_OUTPUT
 };
 
+enum IR_ARITH_OP {
+    IR_ADD,
+    IR_SUB,
+    IR_MULT,
+    IR_LSHIFT,
+    IR_RSHIFT
+};
+
 const size_t NUM_IR_FIELD = IR_FIELD::NE + 1;
 const size_t NUM_OP_CODES = IR_OP_CODE::IR_OUTPUT + 1;
 
@@ -30,6 +38,8 @@ struct IR {
     std::string error_lexeme;
 
     IR_OP_CODE op_code;
+    IR_ARITH_OP arith_op;
+    
     int args[3][NUM_IR_FIELD];
 
     IR(const IR_OP_CODE op_code);
