@@ -157,7 +157,12 @@ std::unique_ptr<IR_NodePool> Parser::parse() {
                 break;
 
             case TokenCategory::TC_MEMOP:
-                block = expect_tokens(scanner, line, reported_line_error, IR_OP_CODE::IR_MEMOP, memop_categories, memop_n);
+                if (start.lexeme[0] == 's') {
+                    block = expect_tokens(scanner, line, reported_line_error, IR_OP_CODE::IR_STORE, memop_categories, memop_n);
+                } else {
+                    block = expect_tokens(scanner, line, reported_line_error, IR_OP_CODE::IR_LOAD, memop_categories, memop_n);
+                }
+
                 break;
 
             case TokenCategory::TC_LOADI:

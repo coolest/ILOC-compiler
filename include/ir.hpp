@@ -14,7 +14,8 @@ enum IR_FIELD {
 
 enum IR_OP_CODE {
     IR_ERROR,
-    IR_MEMOP, 
+    IR_LOAD,
+    IR_STORE,
     IR_ARITHOP,
     IR_LOADI,
     IR_NOP,
