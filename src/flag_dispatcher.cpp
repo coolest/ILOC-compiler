@@ -146,6 +146,10 @@ void FlagDispatch::read(const std::string &filename){
 // LAB 2
 
 const std::string arith_op_strings[] = {"add", "sub", "mult", "lshift", "rshift"};
+std::string format_register(int reg) {
+    return "r" + std::to_string(reg);
+}
+
 void FlagDispatch::rename(const std::string &filename) {
     Parser parser(filename);
 
@@ -161,38 +165,63 @@ void FlagDispatch::rename(const std::string &filename) {
 
             switch(ir.op_code) {
                 case IR_OP_CODE::IR_ARITHOP:
-                    std::cout << arith_op_strings[ir.arith_op] << " vr" 
-                            << ir.args[0][IR_FIELD::VR] << ", vr"
+                    std::cout << arith_op_strings[ir.arith_op] << " "
+                            << format_register(ir.args[0][IR_FIELD::SR]) << ", "
+                            << format_register(ir.args[1][IR_FIELD::SR]) << " => "
+                            << format_register(ir.args[2][IR_FIELD::SR])
+                            << " // vr" << ir.args[0][IR_FIELD::VR] << ", vr"
                             << ir.args[1][IR_FIELD::VR] << " => vr"
                             << ir.args[2][IR_FIELD::VR];
+
                     break;
                 
                 case IR_OP_CODE::IR_LOAD:
-                    std::cout << "load vr" 
-                            << ir.args[0][IR_FIELD::VR] << " => vr"
-                            << ir.args[1][IR_FIELD::VR];
+                    std::cout << "load " << format_register(ir.args[0][IR_FIELD::SR])
+                            << " => " << format_register(ir.args[1][IR_FIELD::SR])
+                            << " // vr" << ir.args[0][IR_FIELD::VR]
+                            << " => vr" << ir.args[1][IR_FIELD::VR];
+                            
                     break;
                     
                 case IR_OP_CODE::IR_STORE:
-                    std::cout << "store vr"
-                            << ir.args[0][IR_FIELD::VR] << " => vr"
-                            << ir.args[1][IR_FIELD::VR];
+                    std::cout << "store " << format_register(ir.args[0][IR_FIELD::SR])
+                            << " => " << format_register(ir.args[1][IR_FIELD::SR]);
+
+                    if (ir.args[1][IR_FIELD::VR] == 0) {
+                        std::cout << " // vr" << ir.args[0][IR_FIELD::VR]
+                                << " => Mem[vr" << ir.args[1][IR_FIELD::SR] << "]";
+                    } else {
+                        std::cout << " // vr" << ir.args[0][IR_FIELD::VR]
+                                << " => vr" << ir.args[1][IR_FIELD::VR];
+                    }
+
                     break;
                     
                 case IR_OP_CODE::IR_LOADI:
-                    std::cout << "loadI "
-                            << ir.args[0][IR_FIELD::SR] << " => vr"
-                            << ir.args[1][IR_FIELD::VR];
+                    std::cout << "loadI " << ir.args[0][IR_FIELD::SR]
+                            << " => " << format_register(ir.args[1][IR_FIELD::SR]);
+
+                    if (ir.args[1][IR_FIELD::PR] != 0) {
+                        std::cout << " // rematerialize vr" << ir.args[1][IR_FIELD::VR]
+                                << " => pr" << ir.args[1][IR_FIELD::PR];
+                    } else {
+                        std::cout << " // " << ir.args[0][IR_FIELD::SR]
+                                << " => vr" << ir.args[1][IR_FIELD::VR];
+                    }
+
                     break;
                     
                 case IR_OP_CODE::IR_OUTPUT:
-                    std::cout << "output " << ir.args[0][IR_FIELD::SR];
+                    std::cout << "output " << ir.args[0][IR_FIELD::SR]
+                            << " // as in the input";
+
                     break;
                     
                 default:
                     break;
+
             }
-            
+
             std::cout << std::endl;
         }
 
