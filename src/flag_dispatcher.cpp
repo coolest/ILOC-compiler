@@ -153,8 +153,9 @@ std::string format_register(int reg) {
 void FlagDispatch::rename(const std::string &filename) {
     Parser parser(filename);
 
+    Allocator allocator;
     std::unique_ptr<IR_NodePool> ir_nodepool =
-        Allocator::rename( // Perform renaming pass
+        allocator.rename( // Perform renaming pass
             parser.parse() // Parse into an IR.
         );
 
@@ -227,4 +228,8 @@ void FlagDispatch::rename(const std::string &filename) {
 
         ir_raw_nodepool = ir_raw_nodepool->next;
     }
+}
+
+void FlagDispatch::allocate(int k, const std::string &filename){
+
 }
