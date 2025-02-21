@@ -1,5 +1,40 @@
 #include "allocator.hpp"
 
+Allocator::Allocator() {
+
+}
+
+void populate_behavior(bool is_def[], bool is_use[], IR& node){
+    switch (node.op_code) {
+        case IR_OP_CODE::IR_LOAD:
+            is_use[0] = true;   // r1 use
+            is_def[1] = true;   // r2 def
+
+            break;
+
+        case IR_OP_CODE::IR_STORE:
+            is_use[0] = true;   // r1 use
+            is_use[1] = true;   // r2 use
+
+            break;
+
+        case IR_OP_CODE::IR_LOADI:
+            is_def[1] = true;   // r2 def
+
+            break;
+
+        case IR_OP_CODE::IR_ARITHOP:
+            is_use[0] = true;   // r1 use
+            is_use[1] = true;   // r2 use
+            is_def[2] = true;   // r3 def
+
+            break;
+
+        default:
+            break;
+    }
+}
+
 constexpr int INVALID = -1;
 std::unique_ptr<IR_NodePool> Allocator::rename(std::unique_ptr<IR_NodePool> ir_head) {
     // Start from the back
@@ -17,6 +52,9 @@ std::unique_ptr<IR_NodePool> Allocator::rename(std::unique_ptr<IR_NodePool> ir_h
     std::unordered_map<int, int> sr_to_vr;
     std::unordered_map<int, int> last_use;
     int vr_name = 0;
+    
+    size_t max_active = 0;
+    std::unordered_set<int> active;
 
     // Loop through NodePools right to left
     while (ir) {
@@ -27,34 +65,7 @@ std::unique_ptr<IR_NodePool> Allocator::rename(std::unique_ptr<IR_NodePool> ir_h
             bool is_def[3] = {false, false, false};
             bool is_use[2] = {false, false}; // Never use r3
 
-            switch (node.op_code) {
-                case IR_OP_CODE::IR_LOAD:
-                    is_use[0] = true;   // r1 use
-                    is_def[1] = true;   // r2 def
-
-                    break;
-
-                case IR_OP_CODE::IR_STORE:
-                    is_use[0] = true;   // r1 use
-                    is_use[1] = true;   // r2 use
-
-                    break;
-
-                case IR_OP_CODE::IR_LOADI:
-                    is_def[1] = true;   // r2 def
-
-                    break;
-
-                case IR_OP_CODE::IR_ARITHOP:
-                    is_use[0] = true;   // r1 use
-                    is_use[1] = true;   // r2 use
-                    is_def[2] = true;   // r3 def
-
-                    break;
-
-                default:
-                    break;
-            }
+            populate_behavior(is_def, is_use, node);
 
             // As per the algorithm:
 
@@ -71,6 +82,11 @@ std::unique_ptr<IR_NodePool> Allocator::rename(std::unique_ptr<IR_NodePool> ir_h
 
                 node.args[arg_num][IR_FIELD::VR] = sr_to_vr[sr];
                 node.args[arg_num][IR_FIELD::NE] = last_use[sr];
+                
+                // New definition
+                if (active.count(sr_to_vr[sr])) {
+                    active.erase(sr_to_vr[sr]);
+                }
 
                 last_use[sr] = INT_MAX;
                 sr_to_vr[sr] = INVALID;
@@ -89,6 +105,9 @@ std::unique_ptr<IR_NodePool> Allocator::rename(std::unique_ptr<IR_NodePool> ir_h
 
                 node.args[arg_num][IR_FIELD::VR] = sr_to_vr[sr];
                 node.args[arg_num][IR_FIELD::NE] = last_use[sr];
+
+                // Using it
+                active.insert(sr_to_vr[sr]);
             }
 
             // Last Uses
@@ -100,10 +119,211 @@ std::unique_ptr<IR_NodePool> Allocator::rename(std::unique_ptr<IR_NodePool> ir_h
                 int sr = node.args[arg_num][IR_FIELD::SR];
                 last_use[sr] = index; // global index here
             }
+
+            max_active = std::max(max_active, active.size());
         }
 
         ir = ir->prev;
     }
 
+    // Update live range (or max of live range)
+    live_range = max_active;
+
+    return std::move(ir_head);
+}
+
+std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir_head, int k) {
+    IR_NodePool* ir = ir_head.get();
+
+    // Keep k-1 register for spilling, if needed
+    const int allocate_regs = k >= live_range ? k : k-1;
+
+    std::stack<int> free_prs;
+    std::vector<int> pr_to_vr(allocate_regs, -1);
+    std::vector<std::pair<short, IR_Node*>> pr_nu(allocate_regs, {-1, nullptr});
+    // vr can be large (maybe vector still better...)
+    std::unordered_map<int, int> vr_to_pr;
+    std::unordered_map<int, int> vr_to_spill;
+
+    // initialize stack
+    for (int i = 0; i < allocate_regs; i++){
+        free_prs.push(i);
+    }
+
+    int next_spill_location = 32768; // default spill value...
+
+    // spill & restore code, and adds the instructions in IR_Extra pointer (so no need to edit array)
+    // note:
+    //  allocates k registers if spilling is not required, otherwise k-1, and k-1 is never used in pr_to_vr
+    //  or pr_nu/etc since it is desginated as a reversed register for spilling.
+    auto spill = [&](IR_Node &node, int pr, int mem_loc) {
+        if (!node.extra) {
+            node.extra = std::make_unique<IR_Extra>();
+        }
+        
+        // Load the next spill memory location into reserved register...
+        IR addr_load(IR_OP_CODE::IR_LOADI);
+        addr_load.args[0][IR_FIELD::SR] = mem_loc;
+        addr_load.args[1][IR_FIELD::PR] = k-1;
+        
+        // Store the PR into the address stored in the reserved register...
+        IR store(IR_OP_CODE::IR_STORE);
+        store.args[0][IR_FIELD::PR] = pr;
+        store.args[1][IR_FIELD::PR] = k-1;
+
+        // Now, should be able to overwrite PR, since we spilled PR into memory...
+
+        node.extra->before.push_back(addr_load);
+        node.extra->before.push_back(store);
+    };
+
+    auto restore = [&](IR_Node &node, int pr, int mem_loc) {
+        if (!node.extra) {
+            node.extra = std::make_unique<IR_Extra>();
+        }
+
+        // Load the spilled address into the reserved register...
+        IR addr_load(IR_OP_CODE::IR_LOADI);
+        addr_load.args[0][IR_FIELD::SR] = mem_loc;
+        addr_load.args[1][IR_FIELD::PR] = k-1;
+
+        // Load the value of address in reserved regitser INTO the PR given... (unspills/restores)
+        IR load(IR_OP_CODE::IR_LOAD);
+        load.args[0][IR_FIELD::PR] = k-1;
+        load.args[1][IR_FIELD::PR] = pr;
+
+        // Now, should be able to use the value since it is given a PR...
+        
+        node.extra->before.push_back(addr_load);
+        node.extra->before.push_back(load);
+    };
+
+    int idx = 0; // global idx (line count)
+    while (ir) {
+        for (int i = 0; i < ir->i; i++, idx++){
+            IR& node = ir->pool[i].ir;
+
+            bool is_def[3] = {false, false, false};
+            bool is_use[2] = {false, false}; // Never use r3
+
+            populate_behavior(is_def, is_use, node);
+
+            // As per the algorithm:
+
+            for (int arg_num = 0; arg_num < 2; arg_num++){
+                int vr = node.args[arg_num][IR_FIELD::VR];
+                if (!is_use[arg_num] || (vr_to_pr.count(vr) && vr_to_pr[vr] >= 0)){
+                    continue;
+                }
+
+                // We are using and vr_to_pr mapping doesn't exist..
+                if (free_prs.size()){
+                    // assign physical register...
+                    int pr = free_prs.top();
+                    free_prs.pop();
+
+                    // might be spilled, but we have free register so unspill...
+                    if (vr_to_spill.count(vr)) {
+                        restore(ir->pool[i], pr, vr_to_spill[vr]);
+                    }
+
+                    vr_to_pr[vr] = pr;
+                    pr_to_vr[pr] = vr;
+
+                    node.args[arg_num][IR_FIELD::PR] = pr;
+
+                    pr_nu[pr] = { node.args[arg_num][IR_FIELD::NE], &ir->pool[i] };
+                } else {
+                    auto [max_val, max_node] = pr_nu[0];
+                    int pr = 0;
+
+                    for (int i = 1; i < allocate_regs; i++){
+                        auto [val, node] = pr_nu[i];
+                        if (val < max_val){
+                            continue;
+                        }
+
+                        pr = i;
+                        max_val = val;
+                        max_node = node;
+                    }
+
+                    spill(*max_node, pr, next_spill_location);
+
+                    int victim_vr = pr_to_vr[pr];
+                    vr_to_spill[victim_vr] = next_spill_location;
+                    next_spill_location += 4;
+
+                    vr_to_pr[victim_vr] = -1;
+                    vr_to_pr[vr] = pr;
+                    pr_to_vr[pr] = vr;
+
+                    node.args[arg_num][IR_FIELD::PR] = pr;
+                    pr_nu[pr] = { node.args[arg_num][IR_FIELD::NE], &ir->pool[i] };
+                }
+
+                int lu = node.args[arg_num][IR_FIELD::NE];
+                if (lu == idx) {
+                    free_prs.push(vr_to_pr[vr]);
+                    vr_to_pr[vr] = -1;
+                }
+            }
+
+            for (int arg_num = 0; arg_num < 3; arg_num++){
+                if (!is_def[arg_num]){
+                    continue;
+                }
+
+                int vr = node.args[arg_num][IR_FIELD::VR];
+                if (free_prs.size()){
+                    int pr = free_prs.top();
+                    free_prs.pop();
+
+                    // might be spilled, but we have free register so unspill...
+                    if (vr_to_spill.count(vr)) {
+                        restore(ir->pool[i], pr, vr_to_spill[vr]);
+                    }
+
+                    vr_to_pr[vr] = pr;
+                    pr_to_vr[pr] = vr;
+
+                    node.args[arg_num][IR_FIELD::PR] = pr;
+
+                    pr_nu[pr] = { node.args[arg_num][IR_FIELD::NE], &ir->pool[i] };
+                } else {
+                    auto [max_val, max_node] = pr_nu[0];
+                    int pr = 0;
+
+                    for (int i = 1; i < allocate_regs; i++){
+                        auto [val, node] = pr_nu[i];
+                        if (val < max_val){
+                            continue;
+                        }
+
+                        pr = i;
+                        max_val = val;
+                        max_node = node;
+                    }
+
+                    spill(*max_node, pr, next_spill_location);
+
+                    int victim_vr = pr_to_vr[pr];
+                    vr_to_spill[victim_vr] = next_spill_location;
+                    next_spill_location += 4;
+
+                    vr_to_pr[victim_vr] = -1;
+                    vr_to_pr[vr] = pr;
+                    pr_to_vr[pr] = vr;
+
+                    node.args[arg_num][IR_FIELD::PR] = pr;
+                    pr_nu[pr] = { node.args[arg_num][IR_FIELD::NE], &ir->pool[i] };
+                }
+            }
+        }
+
+        ir = ir->next;
+    }
+
+    // Give back ownership
     return std::move(ir_head);
 }

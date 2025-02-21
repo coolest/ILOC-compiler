@@ -33,6 +33,11 @@ enum IR_ARITH_OP {
 const size_t NUM_IR_FIELD = IR_FIELD::NE + 1;
 const size_t NUM_OP_CODES = IR_OP_CODE::IR_OUTPUT + 1;
 
+struct IR_Extra {
+    std::vector<IR> before;
+    std::vector<IR> after;
+};
+
 struct IR {
     // If error happens we put lexeme here, otherwise nullptr
     std::string error_lexeme;
@@ -49,6 +54,7 @@ struct IR {
 struct IR_Node {
     IR ir;
     uint32_t line;
+    std::unique_ptr<IR_Extra> extra;
 
     IR_Node(const IR &ir);
     IR_Node();
