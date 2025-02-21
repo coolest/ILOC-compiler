@@ -150,7 +150,7 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
         free_prs.push(i);
     }
 
-    int next_spill_location = 32768; // default spill value...
+    int next_spill_location = 32768; // default spill
 
     // spill & restore code, and adds the instructions in IR_Extra pointer (so no need to edit array)
     // note:
@@ -225,6 +225,7 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
                     // might be spilled, but we have free register so unspill...
                     if (vr_to_spill.count(vr)) {
                         restore(ir->pool[i], pr, vr_to_spill[vr]);
+                        vr_to_spill.erase(vr);
                     }
 
                     vr_to_pr[vr] = pr;
@@ -282,6 +283,7 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
                     // might be spilled, but we have free register so unspill...
                     if (vr_to_spill.count(vr)) {
                         restore(ir->pool[i], pr, vr_to_spill[vr]);
+                        vr_to_spill.erase(vr);
                     }
 
                     vr_to_pr[vr] = pr;
