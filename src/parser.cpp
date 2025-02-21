@@ -211,7 +211,7 @@ std::unique_ptr<IR_NodePool> Parser::parse() {
         IR_Node node(block);
         node.line = line;
 
-        tail->pool[tail->i++] = node;
+        tail->pool[tail->i++] = std::move(node);
 
         // Don't report errors from same line- usually repeat errors are due to the previous
         if (block.op_code == IR_OP_CODE::IR_ERROR && !reported_line_error){

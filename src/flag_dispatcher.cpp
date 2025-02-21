@@ -122,7 +122,7 @@ void print_all_ir(std::unique_ptr<IR_NodePool> ir) {
 
     while (ir_head){
         for (int i = 0; i < IR_NodePool::POOL_SIZE; i++){
-            IR_Node node = ir_head->pool[i];
+            IR_Node &node = ir_head->pool[i];
             if (node.line == 0){
                 break; // End
             }
@@ -230,6 +230,81 @@ void FlagDispatch::rename(const std::string &filename) {
     }
 }
 
-void FlagDispatch::allocate(int k, const std::string &filename){
+// Have to be different than [rename] due to the registers being printed etc.
+void print_instruction(const IR& ir) {
+    switch(ir.op_code) {
+        case IR_OP_CODE::IR_ARITHOP:
+            std::cout << arith_op_strings[ir.arith_op] << " "
+                    << format_register(ir.args[0][IR_FIELD::PR]) << ", "
+                    << format_register(ir.args[1][IR_FIELD::PR]) << " => "
+                    << format_register(ir.args[2][IR_FIELD::PR])
+                    << " // vr" << ir.args[0][IR_FIELD::VR] << ", vr"
+                    << ir.args[1][IR_FIELD::VR] << " => vr"
+                    << ir.args[2][IR_FIELD::VR] << "\n";
+            break;
 
+        case IR_OP_CODE::IR_LOAD:
+            std::cout << "load " << format_register(ir.args[0][IR_FIELD::PR])
+                    << " => " << format_register(ir.args[1][IR_FIELD::PR])
+                    << " // vr" << ir.args[0][IR_FIELD::VR]
+                    << " => vr" << ir.args[1][IR_FIELD::VR] << "\n";
+            break;
+
+        case IR_OP_CODE::IR_STORE:
+            std::cout << "store " << format_register(ir.args[0][IR_FIELD::PR])
+                    << " => " << format_register(ir.args[1][IR_FIELD::PR])
+                    << " // vr" << ir.args[0][IR_FIELD::VR]
+                    << " => Mem[" << ir.args[1][IR_FIELD::VR] << "]\n";
+            break;
+
+        case IR_OP_CODE::IR_LOADI:
+            std::cout << "loadI " << ir.args[0][IR_FIELD::SR]
+                    << " => " << format_register(ir.args[1][IR_FIELD::PR])
+                    << " // " << ir.args[0][IR_FIELD::SR]
+                    << " => vr" << ir.args[1][IR_FIELD::VR];
+            if (ir.args[1][IR_FIELD::PR] != 0) {
+                std::cout << " rematerialize pr" << ir.args[1][IR_FIELD::PR];
+            }
+            std::cout << "\n";
+            break;
+
+        case IR_OP_CODE::IR_OUTPUT:
+            std::cout << "output " << ir.args[0][IR_FIELD::SR]
+                    << " // as in the input\n";
+            break;
+
+        default:
+            break;
+    }
+}
+
+void FlagDispatch::allocate(int k, const std::string &filename){
+    Parser parser(filename);
+
+    Allocator allocator;
+    std::unique_ptr<IR_NodePool> ir_nodepool =
+        allocator.allocate( // perform allocation
+            allocator.rename( // Perform renaming pass
+                parser.parse() // Parse into an IR.
+            ),
+        k);
+
+    IR_NodePool* ir_raw_nodepool = ir_nodepool.get();
+    while (ir_raw_nodepool) {
+        for (int i = 0; i < ir_raw_nodepool->i; i++) {
+            IR_Node& node = ir_raw_nodepool->pool[i];
+            
+            // Any spill/restore code first
+            if (node.extra) {
+                for (const IR& extra : node.extra->before) {
+                    print_instruction(extra);
+                }
+            }
+            
+            // Main instruction/block
+            print_instruction(node.ir);
+        }
+
+        ir_raw_nodepool = ir_raw_nodepool->next;
+    }
 }
