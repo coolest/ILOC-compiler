@@ -36,6 +36,7 @@ void populate_behavior(bool is_def[], bool is_use[], IR& node){
 }
 
 constexpr int INVALID = -1;
+constexpr int NEVER_USED = -1;
 std::unique_ptr<IR_NodePool> Allocator::rename(std::unique_ptr<IR_NodePool> ir_head) {
     // Start from the back
     int index = 0; // Global index for last_use
@@ -88,7 +89,7 @@ std::unique_ptr<IR_NodePool> Allocator::rename(std::unique_ptr<IR_NodePool> ir_h
                     active.erase(sr_to_vr[sr]);
                 }
 
-                last_use[sr] = INT_MAX;
+                last_use[sr] = NEVER_USED;
                 sr_to_vr[sr] = INVALID;
             }
 
@@ -210,47 +211,56 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
 
             // As per the algorithm:
 
+            // Uses..
             for (int arg_num = 0; arg_num < 2; arg_num++){
                 int vr = node.args[arg_num][IR_FIELD::VR];
+                // if we ARENT using it, OR there exists a valid physical register already...
                 if (!is_use[arg_num] || (vr_to_pr.count(vr) && vr_to_pr[vr] >= 0)){
                     continue;
                 }
 
-                // We are using and vr_to_pr mapping doesn't exist..
+                // If we have FREE physical registers..
                 if (free_prs.size()){
                     // assign physical register...
                     int pr = free_prs.top();
                     free_prs.pop();
 
                     // might be spilled, but we have free register so unspill...
-                    if (vr_to_spill.count(vr)) {
+                    if (vr_to_spill.count(vr) && vr_to_spill[vr] >= 0) {
                         restore(ir->pool[i], pr, vr_to_spill[vr]);
-                        vr_to_spill.erase(vr);
+
+                        vr_to_spill[vr] = -1;
                     }
 
+                    // necessary mappings/information for setting the VR to PR
                     vr_to_pr[vr] = pr;
                     pr_to_vr[pr] = vr;
 
                     node.args[arg_num][IR_FIELD::PR] = pr;
 
+                    // specify when this register is NEXT USED...
                     pr_nu[pr] = { node.args[arg_num][IR_FIELD::NE], &ir->pool[i] };
                 } else {
-                    auto [max_val, max_node] = pr_nu[0];
+                    // otherwise... we need to SPILL an existing register...
+                    auto [max_val, max_node] = pr_nu[0]; // current NEXT_USE and NODE of the register...
                     int pr = 0;
 
                     for (int i = 1; i < allocate_regs; i++){
                         auto [val, node] = pr_nu[i];
-                        if (val < max_val){
+                        if (val <= max_val){ // see if this NEXT_USE is larger than current...
                             continue;
                         }
 
+                        // only keep the LARGEST next_use to spill ....
                         pr = i;
                         max_val = val;
                         max_node = node;
                     }
 
+                    // spill the node decided on...
                     spill(*max_node, pr, next_spill_location);
 
+                    // unassign the mappings to that node...
                     int victim_vr = pr_to_vr[pr];
                     vr_to_spill[victim_vr] = next_spill_location;
                     next_spill_location += 4;
@@ -263,27 +273,31 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
                     pr_nu[pr] = { node.args[arg_num][IR_FIELD::NE], &ir->pool[i] };
                 }
 
-                int lu = node.args[arg_num][IR_FIELD::NE];
-                if (lu == idx) {
+                int nu = node.args[arg_num][IR_FIELD::NE];
+                if (nu <= idx) { // check if it has already been exhausted
                     free_prs.push(vr_to_pr[vr]);
+
                     vr_to_pr[vr] = -1;
                 }
             }
 
+            // Defs..
             for (int arg_num = 0; arg_num < 3; arg_num++){
-                if (!is_def[arg_num]){
+                if (!is_def[arg_num]){ // If we are defining it...
                     continue;
                 }
 
                 int vr = node.args[arg_num][IR_FIELD::VR];
-                if (free_prs.size()){
+                if (free_prs.size()){ // If we have FREE registers...
+                    // Pop and give them to the VR we are defining..
                     int pr = free_prs.top();
                     free_prs.pop();
 
                     // might be spilled, but we have free register so unspill...
-                    if (vr_to_spill.count(vr)) {
+                    if (vr_to_spill.count(vr) && vr_to_spill[vr] >= 0) {
                         restore(ir->pool[i], pr, vr_to_spill[vr]);
-                        vr_to_spill.erase(vr);
+
+                        vr_to_spill[vr] = -1;
                     }
 
                     vr_to_pr[vr] = pr;
@@ -293,12 +307,16 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
 
                     pr_nu[pr] = { node.args[arg_num][IR_FIELD::NE], &ir->pool[i] };
                 } else {
+                    // No register... :(
+                    // We have to spill one not used...
+
+                    // like old algorithm... (copy and paste basically... could abstract into a singular function... but would make it more complex IMO)
                     auto [max_val, max_node] = pr_nu[0];
                     int pr = 0;
 
                     for (int i = 1; i < allocate_regs; i++){
                         auto [val, node] = pr_nu[i];
-                        if (val < max_val){
+                        if (val <= max_val){
                             continue;
                         }
 

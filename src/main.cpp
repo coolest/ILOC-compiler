@@ -22,8 +22,10 @@ int main(int argc, char* argv[]){
         return 1;
     } else if (argc == 3 && argv[1][0] != '-') {
         // assume it is like ./434alloc [k] [filename]
-        
+
         dispatch.allocate(std::stoi(argv[1]), argv[2]);
+
+        return 1;
     }
 
     // assuming proper use
