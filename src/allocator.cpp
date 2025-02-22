@@ -160,6 +160,13 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
         if (!node.extra) {
             node.extra = std::make_unique<IR_Extra>();
         }
+
+        if (loadI_vr.count(vr_to_pr[pr])) {
+            // No store needed—just invalidate the PR mapping
+            vr_to_spill[vr_to_pr[pr]] = INVALID;  // Or mark as "clean"
+
+            return;
+        }
         
         // Load the next spill memory location into reserved register...
         IR addr_load(IR_OP_CODE::IR_LOADI);
@@ -180,6 +187,16 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
     auto restore = [&](IR_Node &node, int pr, int mem_loc) {
         if (!node.extra) {
             node.extra = std::make_unique<IR_Extra>();
+        }
+
+        if (loadI_vr.count(vr_to_pr[pr])) {
+            // Restore via LOADI (no memory access)
+            IR loadI_op(IR_OP_CODE::IR_LOADI);
+            loadI_op.args[0][IR_FIELD::SR] = loadI_vr[vr_to_pr[pr]];
+            loadI_op.args[1][IR_FIELD::PR] = pr;
+            node.extra->before.push_back(loadI_op);
+
+            return;
         }
 
         // Load the spilled address into the reserved register...
@@ -211,7 +228,7 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
             // As per the algorithm:
 
             if (node.op_code == IR_OP_CODE::IR_LOADI) {
-                int vr = node.args[2][IR_FIELD::VR];  // Assuming OP3 is the destination
+                int vr = node.args[1][IR_FIELD::VR];
                 
                 loadI_vr[vr] = node.args[0][IR_FIELD::SR];
             }
@@ -239,13 +256,6 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
 
                 // if we ARENT using it, OR there exists a valid physical register already...
                 if (!is_use[arg_num]) {
-                    continue;
-                }
-
-                if (vr_to_pr.count(vr) && vr_to_pr[vr] >= 0) {
-                    // VR already has a PR mapping, use it
-                    node.args[arg_num][IR_FIELD::PR] = vr_to_pr[vr]; // this costed me like 4 hours...
-
                     continue;
                 }
 
