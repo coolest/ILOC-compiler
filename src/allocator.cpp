@@ -301,14 +301,6 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
                     node.args[arg_num][IR_FIELD::PR] = pr;
                     pr_nu[pr] = { node.args[arg_num][IR_FIELD::NE], &ir->pool[i] };
                 }
-
-                int nu = node.args[arg_num][IR_FIELD::NE];
-                if (nu <= idx) { // check if it has already been exhausted
-                    //std::cout << "clear " << vr_to_pr[vr] << " (no more use)" << std::endl;
-                    free_prs.push(vr_to_pr[vr]);
-
-                    vr_to_pr[vr] = -1;
-                }
             }
 
             // Defs..
