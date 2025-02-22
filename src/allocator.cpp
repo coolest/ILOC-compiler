@@ -369,11 +369,12 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
 
                     // like old algorithm... (copy and paste basically... could abstract into a singular function... but would make it more complex IMO)
                     int current_op1_pr = node.args[0][IR_FIELD::PR];
+                    int current_op2_pr = node.args[1][IR_FIELD::PR];  // for ARITH_OP
                     int max_val = pr_nu[0];
                     int pr = 0;
 
                     for (int i = 1; i < allocate_regs; i++){
-                        if (i == current_op1_pr){
+                        if (i == current_op1_pr || i == current_op2_pr){
                             continue;
                         }
 
