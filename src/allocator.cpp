@@ -129,7 +129,7 @@ std::unique_ptr<IR_NodePool> Allocator::rename(std::unique_ptr<IR_NodePool> ir_h
     return std::move(ir_head);
 }
 
-//#include <iostream>
+// #include <iostream>
 std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir_head, int k) {
     IR_NodePool* ir = ir_head.get();
 
@@ -145,7 +145,7 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
     std::unordered_map<int, int> vr_to_spill;
 
     // initialize stack
-    for (int i = 0; i < allocate_regs; i++){
+    for (int i = allocate_regs-1; i >= 0; i--){
         free_prs.push(i);
     }
 
@@ -229,8 +229,16 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
             // Uses..
             for (int arg_num = 0; arg_num < 2; arg_num++){
                 int vr = node.args[arg_num][IR_FIELD::VR];
+
                 // if we ARENT using it, OR there exists a valid physical register already...
-                if (!is_use[arg_num] || (vr_to_pr.count(vr) && vr_to_pr[vr] >= 0)){
+                if (!is_use[arg_num]) {
+                    continue;
+                }
+
+                if (vr_to_pr.count(vr) && vr_to_pr[vr] >= 0) {
+                    // VR already has a PR mapping, use it
+                    node.args[arg_num][IR_FIELD::PR] = vr_to_pr[vr]; // this costed me like 4 hours...
+
                     continue;
                 }
 
