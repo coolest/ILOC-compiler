@@ -147,6 +147,10 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
     // loadI optimization
     std::unordered_map<int, int> loadI_vr;
 
+    /*
+        REMEBER FOR OPTIMIZATION CHOOSE LOADIs TO SPILL FIRST AND U CAN STORE THAT INFORMATION IN PR_NU ETC AS A PAIR <NU, OP>
+    */
+
     // initialize stack
     for (int i = allocate_regs-1; i >= 0; i--){
         free_prs.push(i);
@@ -225,7 +229,7 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
 
             populate_behavior(is_def, is_use, node);
 
-            // As per the algorithm:
+            // As per the algorithm (heh... it deviates a lot................................):
 
             if (node.op_code == IR_OP_CODE::IR_LOADI) {
                 int vr = node.args[1][IR_FIELD::VR];
@@ -244,8 +248,9 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
                 int nuse = pr_nu[pr];
                 if (nuse < idx) {
                     pr_to_vr[pr] = -1;
-                    pr_nu[pr] = 0;
                     vr_to_pr[vr] = -1;
+                    pr_nu[pr] = -1;
+
                     free_prs.push(pr);
                 }
             }
@@ -333,7 +338,7 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
 
             // Defs..
             for (int arg_num = 0; arg_num < 3; arg_num++){
-                if (!is_def[arg_num] || node.args[arg_num][IR_FIELD::NE] <= idx){ // If we are defining it... and it is used somewhere..
+                if (!is_def[arg_num]){ // If we are defining it... and it is used somewhere..
                     continue;
                 }
 
