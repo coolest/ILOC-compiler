@@ -130,6 +130,7 @@ std::unique_ptr<IR_NodePool> Allocator::rename(std::unique_ptr<IR_NodePool> ir_h
 }
 
 // #include <iostream>
+const int BASE_SPILL_ADDR = 65536;
 std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir_head, int k) {
     IR_NodePool* ir = ir_head.get();
 
@@ -143,13 +144,13 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
     // vr can be large (maybe vector still better...)
     std::unordered_map<int, int> vr_to_pr;
     std::unordered_map<int, int> vr_to_spill;
+    // loadI optimization
+    std::unordered_map<int, int> loadI_vr;
 
     // initialize stack
     for (int i = allocate_regs-1; i >= 0; i--){
         free_prs.push(i);
     }
-
-    int next_spill_location = 65536; // default spill
 
     // spill & restore code, and adds the instructions in IR_Extra pointer (so no need to edit array)
     // note:
@@ -208,6 +209,12 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
             populate_behavior(is_def, is_use, node);
 
             // As per the algorithm:
+
+            if (node.op_code == IR_OP_CODE::IR_LOADI) {
+                int vr = node.args[2][IR_FIELD::VR];  // Assuming OP3 is the destination
+                
+                loadI_vr[vr] = node.args[0][IR_FIELD::SR];
+            }
 
             // Not in psuedocode but needed ??
             // O(K)... free all non-used registers...
@@ -278,10 +285,15 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
                     pr_nu[pr] = node.args[arg_num][IR_FIELD::NE];
                 } else {
                     // otherwise... we need to SPILL an existing register...
+                    int current_op1_pr = node.args[0][IR_FIELD::PR];
                     int max_val = pr_nu[0];
                     int pr = 0;
 
                     for (int i = 1; i < allocate_regs; i++){
+                        if (i == current_op1_pr){
+                            continue;
+                        }
+
                         int val = pr_nu[i];
                         int val_for_compare = (val == -1) ? INT_MAX : val;
                         if (val_for_compare <= max_val){
@@ -294,12 +306,11 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
 
                     // spill the node decided on...
                     //std::cout << "spill " << pr << " for use" << std::endl;
-                    spill(ir->pool[i], pr, next_spill_location);
+                    int victim_vr = pr_to_vr[pr];
+                    spill(ir->pool[i], pr, BASE_SPILL_ADDR + 4 * victim_vr);
 
                     // unassign the mappings to that node...
-                    int victim_vr = pr_to_vr[pr];
-                    vr_to_spill[victim_vr] = next_spill_location;
-                    next_spill_location += 4;
+                    vr_to_spill[victim_vr] = BASE_SPILL_ADDR + 4 * victim_vr;
 
                     vr_to_pr[victim_vr] = -1;
                     vr_to_pr[vr] = pr;
@@ -342,10 +353,15 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
                     // We have to spill one not used...
 
                     // like old algorithm... (copy and paste basically... could abstract into a singular function... but would make it more complex IMO)
+                    int current_op1_pr = node.args[0][IR_FIELD::PR];
                     int max_val = pr_nu[0];
                     int pr = 0;
 
                     for (int i = 1; i < allocate_regs; i++){
+                        if (i == current_op1_pr){
+                            continue;
+                        }
+
                         int val = pr_nu[i];
                         int val_for_compare = (val == -1) ? INT_MAX : val;
                         if (val_for_compare <= max_val){
@@ -357,11 +373,11 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
                     }
 
                     //std::cout << "spill " << pr << " for def" << std::endl;
-                    spill(ir->pool[i], pr, next_spill_location);
-
                     int victim_vr = pr_to_vr[pr];
-                    vr_to_spill[victim_vr] = next_spill_location;
-                    next_spill_location += 4;
+                    spill(ir->pool[i], pr, BASE_SPILL_ADDR + 4 * victim_vr);
+
+                    // unassign the mappings to that node...
+                    vr_to_spill[victim_vr] = BASE_SPILL_ADDR + 4 * victim_vr;
 
                     vr_to_pr[victim_vr] = -1;
                     vr_to_pr[vr] = pr;
