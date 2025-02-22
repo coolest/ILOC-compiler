@@ -139,7 +139,7 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
     //std::cout << allocate_regs << std::endl;
     std::stack<int> free_prs;
     std::vector<int> pr_to_vr(allocate_regs, -1);
-    std::vector<std::pair<short, IR_Node*>> pr_nu(allocate_regs, {-1, nullptr});
+    std::vector<int> pr_nu(allocate_regs, 0);
     // vr can be large (maybe vector still better...)
     std::unordered_map<int, int> vr_to_pr;
     std::unordered_map<int, int> vr_to_spill;
@@ -149,7 +149,7 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
         free_prs.push(i);
     }
 
-    int next_spill_location = 32768; // default spill
+    int next_spill_location = 65536; // default spill
 
     // spill & restore code, and adds the instructions in IR_Extra pointer (so no need to edit array)
     // note:
@@ -217,10 +217,10 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
                     continue; // no VR in this PR
                 }
                 
-                int nuse = pr_nu[pr].first;
+                int nuse = pr_nu[pr];
                 if (nuse < idx) {
                     pr_to_vr[pr] = -1;
-                    pr_nu[pr] = {-1, nullptr};
+                    pr_nu[pr] = 0;
                     vr_to_pr[vr] = -1;
                     free_prs.push(pr);
                 }
@@ -248,7 +248,7 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
                     node.args[arg_num][IR_FIELD::PR] = pr;
 
                     // Update pr_nu if the IR says a new next use
-                    pr_nu[pr] = {node.args[arg_num][IR_FIELD::NE], &ir->pool[i]};
+                    pr_nu[pr] = node.args[arg_num][IR_FIELD::NE];
 
                     continue;
                 } 
@@ -275,27 +275,26 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
                     node.args[arg_num][IR_FIELD::PR] = pr;
 
                     // specify when this register is NEXT USED...
-                    pr_nu[pr] = { node.args[arg_num][IR_FIELD::NE], &ir->pool[i] };
+                    pr_nu[pr] = node.args[arg_num][IR_FIELD::NE];
                 } else {
                     // otherwise... we need to SPILL an existing register...
-                    auto [max_val, max_node] = pr_nu[0]; // current NEXT_USE and NODE of the register...
+                    int max_val = pr_nu[0];
                     int pr = 0;
 
                     for (int i = 1; i < allocate_regs; i++){
-                        auto [val, node] = pr_nu[i];
-                        if (val <= max_val){ // see if this NEXT_USE is larger than current...
+                        int val = pr_nu[i];
+                        int val_for_compare = (val == -1) ? INT_MAX : val;
+                        if (val_for_compare <= max_val){
                             continue;
                         }
 
-                        // only keep the LARGEST next_use to spill ....
                         pr = i;
-                        max_val = val;
-                        max_node = node;
+                        max_val = val_for_compare;
                     }
 
                     // spill the node decided on...
                     //std::cout << "spill " << pr << " for use" << std::endl;
-                    spill(*max_node, pr, next_spill_location);
+                    spill(ir->pool[i], pr, next_spill_location);
 
                     // unassign the mappings to that node...
                     int victim_vr = pr_to_vr[pr];
@@ -307,7 +306,7 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
                     pr_to_vr[pr] = vr;
 
                     node.args[arg_num][IR_FIELD::PR] = pr;
-                    pr_nu[pr] = { node.args[arg_num][IR_FIELD::NE], &ir->pool[i] };
+                    pr_nu[pr] = node.args[arg_num][IR_FIELD::NE];
                 }
             }
 
@@ -337,28 +336,28 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
 
                     node.args[arg_num][IR_FIELD::PR] = pr;
 
-                    pr_nu[pr] = { node.args[arg_num][IR_FIELD::NE], &ir->pool[i] };
+                    pr_nu[pr] = node.args[arg_num][IR_FIELD::NE];
                 } else {
                     // No register... :(
                     // We have to spill one not used...
 
                     // like old algorithm... (copy and paste basically... could abstract into a singular function... but would make it more complex IMO)
-                    auto [max_val, max_node] = pr_nu[0];
+                    int max_val = pr_nu[0];
                     int pr = 0;
 
                     for (int i = 1; i < allocate_regs; i++){
-                        auto [val, node] = pr_nu[i];
-                        if (val <= max_val){
+                        int val = pr_nu[i];
+                        int val_for_compare = (val == -1) ? INT_MAX : val;
+                        if (val_for_compare <= max_val){
                             continue;
                         }
 
                         pr = i;
-                        max_val = val;
-                        max_node = node;
+                        max_val = val_for_compare;
                     }
 
                     //std::cout << "spill " << pr << " for def" << std::endl;
-                    spill(*max_node, pr, next_spill_location);
+                    spill(ir->pool[i], pr, next_spill_location);
 
                     int victim_vr = pr_to_vr[pr];
                     vr_to_spill[victim_vr] = next_spill_location;
@@ -369,7 +368,7 @@ std::unique_ptr<IR_NodePool> Allocator::allocate(std::unique_ptr<IR_NodePool> ir
                     pr_to_vr[pr] = vr;
 
                     node.args[arg_num][IR_FIELD::PR] = pr;
-                    pr_nu[pr] = { node.args[arg_num][IR_FIELD::NE], &ir->pool[i] };
+                    pr_nu[pr] = node.args[arg_num][IR_FIELD::NE];
                 }
             }
         }
