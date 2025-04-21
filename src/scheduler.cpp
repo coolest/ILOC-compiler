@@ -131,7 +131,7 @@ std::vector<std::vector<Node*>> Scheduler::schedule(){
 
     compute_priorities();
     for (Node* node : g->nodes){
-        if (node->successors.size() == 0){
+        if (node->successors.size() > 0){
             continue;
         }
 
@@ -144,8 +144,7 @@ std::vector<std::vector<Node*>> Scheduler::schedule(){
 
         std::queue<Node*> q;
 
-        cout << cycle << endl;
-        int tries = 7; // don't try all readies...
+        int tries = 50; // don't try all readies...
         while (tries-- >= 0 && !ready.empty() && (f0_busy_until <= cycle || f1_busy_until <= cycle)){
             Node* node = ready.top();
             ready.pop();
@@ -178,15 +177,14 @@ std::vector<std::vector<Node*>> Scheduler::schedule(){
             q.pop();
         }
 
-        cycle++;        
-        cout << cycle << endl;
+        cycle++;
         for (Node* node : active){
             if (node->finish >= cycle){
                 continue;
             }
 
             // completed;
-            active.erase(node);
+            q.push(node);
             for (Edge &e : node->predecessors){
                 Node* dependent = e.source;
                 dependent->remaining_dependencies--;
@@ -195,6 +193,11 @@ std::vector<std::vector<Node*>> Scheduler::schedule(){
                     ready.push(dependent);
                 }
             }
+        }
+
+        while (!q.empty()){
+            active.erase(q.front());
+            q.pop();
         }
 
         for (Node* node : active){
