@@ -31,8 +31,8 @@ void DependenceGraph::add_edge(Node* source, Node* target, EdgeType type, int re
     edge.latency = delay;
     
     source->successors.push_back(edge);
-    source->remaining_dependencies++; // one more dependency
-
+    
+    target->remaining_dependencies++; // one more dependency
     target->predecessors.push_back(edge);
 }
 
@@ -48,30 +48,6 @@ void DependenceGraph::add_node(IR &ir){
 }
 
 std::unique_ptr<IR_NodePool> DependenceGraph::build_graph(std::unique_ptr<IR_NodePool> ir_head){
-    /*
-        Going over the details, so I don't get them incorrect when programming it-
-        
-        First, ADD nodes to our graph by traversing the IR_NodePool
-            1. Get a IR_Node, check IR_Extra before then add those first, add existing node, add IR_Extra after nodes.
-
-        (Hard part):
-        Second, ADD edges to our graph for dependencies:
-            1. If OP defines VRi, set register_map[VRi] = NODEi (where NODEi is the corresponding Node created in step 1).
-            2. If VRj is used in NODEiOP, add an edge from NODEi to register_map[VRj].
-                2a. add_edge(NODE_WHERE_ARE_AT, register_map[VRj], etc, etc)
-        
-        (Super hard part):
-        Context: We track the LAST store/output, because we are building the dependencies ONE LAYER AT A TIME.
-        Context2: BE CONSERVATIVE, Assume all addresses are same when adding these edges!
-        Third, MEMOP edges.
-            1. load/output BEFORE store-> assume same address, 
-                serialize edge BECAUSE: we want to read before we write that address
-            2. store BEFORE store-> assume same address
-                serialize edge BECAUSE: we need to ensure after both stores execute address has expected value, and in between these two edges, etc.
-            3. store BEFORE load/output -> assume same address,
-                conflict/serialzie edge BECAUSE: we need to ensure we write the correct value before reading it, otherwise we may output/store a wrong value
-    */
-
     // ADD NODES HERE
     IR_NodePool* temp = ir_head.get();
     while (temp != nullptr){
@@ -129,18 +105,9 @@ std::unique_ptr<IR_NodePool> DependenceGraph::build_graph(std::unique_ptr<IR_Nod
                 continue; // USE BEFORE DEFINE (???)
             }
 
-            add_edge(node, register_map[vr], EdgeTypeData, vr, register_map[vr]->delay);
+            add_edge(register_map[vr], node, EdgeTypeData, vr, register_map[vr]->delay);
         }
     }
-
-    /*
-        Context 2:
-        LOADS & STORES need to be in order- so if a LOAD comes around, we need to get the last store and make an edge
-        STORES & LOADS need to be in order- so if a STORE comes around, we need to get all of the previous loads that happened until the last store and connect them.
-        ^^ The reason we have an array is because LOADS & LOADS can be out of order, but not STORES & STORES, so we always update the stores, but not the loads.
-        STORES & STORES need to be in order- so if a STORE comes around, we need to connect the edges between the two stores to ensure proper order
-        OUTPUTS - if an OUTPUT comes we need to connect output with the LAST store&output AND THEN push the output in the array of loads (loads/outputs are the same in this sense as they are a READ)
-    */
 
     // MEMORY EDGES
     Node* last_store = nullptr;
@@ -153,7 +120,7 @@ std::unique_ptr<IR_NodePool> DependenceGraph::build_graph(std::unique_ptr<IR_Nod
         switch (op_code){
             case IR_LOAD: {
                 if (last_store != nullptr) {
-                    add_edge(memop, last_store, EdgeTypeConflict, -1, last_store->delay);
+                    add_edge(last_store, memop, EdgeTypeConflict, -1, last_store->delay);
                 }
                 
                 loads_since_last_store.push_back(memop);
@@ -162,11 +129,11 @@ std::unique_ptr<IR_NodePool> DependenceGraph::build_graph(std::unique_ptr<IR_Nod
 
             case IR_STORE: {
                 if (last_store != nullptr) {
-                    add_edge(memop, last_store, EdgeTypeSerial, -1, 1);
+                    add_edge(last_store, memop, EdgeTypeSerial, -1, last_store->delay);
                 }
                 
                 for (Node* load : loads_since_last_store) {
-                    add_edge(memop, load, EdgeTypeSerial, -1, 1);
+                    add_edge(load, memop, EdgeTypeSerial, -1, load->delay);
                 }
                 
                 last_store = memop;
@@ -176,11 +143,11 @@ std::unique_ptr<IR_NodePool> DependenceGraph::build_graph(std::unique_ptr<IR_Nod
 
             case IR_OUTPUT: {
                 if (last_store != nullptr) {
-                    add_edge(memop, last_store, EdgeTypeConflict, -1, last_store->delay);
+                    add_edge(last_store, memop, EdgeTypeConflict, -1, last_store->delay);
                 }
                 
                 if (last_output != nullptr) {
-                    add_edge(memop, last_output, EdgeTypeSerial, -1, 1);
+                    add_edge(last_output, memop, EdgeTypeSerial, -1, last_output->delay);
                 }
                 
                 loads_since_last_store.push_back(memop);

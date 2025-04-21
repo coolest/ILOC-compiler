@@ -60,8 +60,8 @@ int Scheduler::count_descendants(Node* node) {
 }
 
 bool only_waiting_for_control_deps(Node* node, int cycle) {
-    for (Edge &e : node->successors){
-        if (e.type == EdgeTypeData && (e.target->finish >= cycle)){
+    for (Edge &e : node->predecessors) {
+        if (e.type == EdgeTypeData && e.source->finish > cycle) {
             return false;
         }
     }
@@ -92,10 +92,10 @@ void Scheduler::compute_priorities(){
 
         for (Node* node : g->nodes){
             int max_path = 0;
-            for (Edge &e : node->successors){
-                Node* successor = e.target;
+            for (Edge &e : node->predecessors){
+                Node* pred = e.source;
 
-                int path_len = successor->priority + e.latency;
+                int path_len = pred->priority + e.latency;
                 max_path = std::max(path_len, max_path);
             }
 
@@ -121,12 +121,11 @@ std::vector<std::vector<Node*>> Scheduler::schedule(){
     std::vector<std::vector<Node*>> schedule;
 
     compute_priorities();
+    
     for (Node* node : g->nodes){
-        if (node->successors.size() > 0){
-            continue;
+        if (node->remaining_dependencies == 0){
+            ready.push(node);
         }
-
-        ready.push(node);
     }
 
     int cycle = 0;
@@ -135,31 +134,33 @@ std::vector<std::vector<Node*>> Scheduler::schedule(){
 
         std::queue<Node*> q;
 
-        int tries = 50; // don't try all readies...
-        while (tries-- >= 0 && !ready.empty() && (f0_busy_until <= cycle || f1_busy_until <= cycle)){
+        int tries = 50;
+        while (tries-- >= 0 && !ready.empty()){
             Node* node = ready.top();
             ready.pop();
 
             if (needs_f1(node)){
                 if (f1_busy_until > cycle){
-                    q.push(node); // cannot schedule
+                    q.push(node);
                 } else {
                     schedule.back()[1] = node;
-
                     node->finish = cycle + node->delay;
                     f1_busy_until = node->finish;
                     active.insert(node);
                 }
             } else {
                 if (f0_busy_until > cycle){
-                    q.push(node); // cannot schedule
+                    q.push(node);
                 } else {
                     schedule.back()[0] = node;
-
                     node->finish = cycle + node->delay;
                     f0_busy_until = node->finish;
                     active.insert(node);
                 }
+            }
+            
+            if (f0_busy_until > cycle && f1_busy_until > cycle) {
+                break;
             }
         }
 
@@ -169,38 +170,30 @@ std::vector<std::vector<Node*>> Scheduler::schedule(){
         }
 
         cycle++;
+        
+        std::vector<Node*> completed;
         for (Node* node : active){
-            if (node->finish >= cycle){
-                continue;
-            }
+            if (node->finish <= cycle){
+                completed.push_back(node);
+                
+                for (Edge &e : node->successors){
+                    Node* succ = e.target;
+                    succ->remaining_dependencies--;
 
-            // completed;
-            q.push(node);
-            for (Edge &e : node->predecessors){
-                Node* dependent = e.source;
-                dependent->remaining_dependencies--;
-
-                if (dependent->remaining_dependencies == 0){
-                    ready.push(dependent);
+                    if (succ->remaining_dependencies == 0){
+                        ready.push(succ);
+                    }
                 }
             }
         }
-
-        while (!q.empty()){
-            active.erase(q.front());
-            q.pop();
+        
+        for (Node* node : completed){
+            active.erase(node);
         }
+    }
 
-        for (Node* node : active){
-            for (Edge &e : node->predecessors){
-                Node* dependent = e.source;
-                dependent->remaining_dependencies--;
-
-                if (only_waiting_for_control_deps(dependent, cycle)){
-                    ready.push(dependent);
-                }
-            }
-        }
+    while (!schedule.empty() && schedule.back()[0] == nullptr && schedule.back()[1] == nullptr) {
+        schedule.pop_back();
     }
 
     return schedule;
