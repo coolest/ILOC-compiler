@@ -280,6 +280,39 @@ void print_instruction(const IR& ir) {
     }
 }
 
+void print_instruction_vr(const IR& ir) {
+    switch(ir.op_code) {
+        case IR_OP_CODE::IR_ARITHOP:
+            std::cout << arith_op_strings[ir.arith_op] << " "
+                    << "r" << ir.args[0][IR_FIELD::VR] << ", "
+                    << "r" << ir.args[1][IR_FIELD::VR] << " => "
+                    << "r" << ir.args[2][IR_FIELD::VR];
+            break;
+
+        case IR_OP_CODE::IR_LOAD:
+            std::cout << "load " << "r" << ir.args[0][IR_FIELD::VR]
+                    << " => " << "r" << ir.args[1][IR_FIELD::VR];
+            break;
+
+        case IR_OP_CODE::IR_STORE:
+            std::cout << "store " << "r" << ir.args[0][IR_FIELD::VR]
+                    << " => " << "r" << ir.args[1][IR_FIELD::VR];
+            break;
+
+        case IR_OP_CODE::IR_LOADI:
+            std::cout << "loadI " << ir.args[0][IR_FIELD::SR]
+                    << " => " << "r" << ir.args[1][IR_FIELD::VR];
+            break;
+
+        case IR_OP_CODE::IR_OUTPUT:
+            std::cout << "output " << ir.args[0][IR_FIELD::SR];
+            break;
+
+        default:
+            break;
+    }
+}
+
 void FlagDispatch::allocate(int k, const std::string &filename){
     Parser parser(filename);
 
@@ -333,15 +366,15 @@ void FlagDispatch::schedule(const std::string &filename){
         std::cout << "[ ";
 
         if (instruction[0]){
-            print_instruction(*instruction[0]->op);
+            print_instruction_vr(*instruction[0]->op);
         } else {
             std::cout << "nop";
         }
 
-        std::cout << "; ";
+        std::cout << " ; ";
 
         if (instruction[1]){
-            print_instruction(*instruction[1]->op);
+            print_instruction_vr(*instruction[1]->op);
         } else {
             std::cout << "nop";
         }

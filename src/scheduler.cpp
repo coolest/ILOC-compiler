@@ -4,9 +4,6 @@ Scheduler::Scheduler(DependenceGraph* g) : g{g}, f0_busy_until{0}, f1_busy_until
 
 }
 
-#include <iostream>
-using namespace std;
-
 std::vector<Node*> Scheduler::topological_sort() {
     std::vector<Node*> result;
     std::unordered_set<Node*> visited;
@@ -109,18 +106,12 @@ void Scheduler::compute_priorities(){
         }
     }
 
-    cout << "cccc" << endl;
-
     for (Node* node : g->nodes){
         node->priority = 10 * node->priority + count_descendants(node);
     }
-
-
-    cout << "dddd" << endl;
 }
 
 std::vector<std::vector<Node*>> Scheduler::schedule(){
-        cout << "bbbb" << endl;
     auto compare = [&](Node* a, Node* b){
         return a->priority > b->priority;
     };

@@ -187,8 +187,6 @@ std::unique_ptr<IR_NodePool> DependenceGraph::build_graph(std::unique_ptr<IR_Nod
                 last_output = memop;
                 break;
             }
-
-            default:
         }
     }
 

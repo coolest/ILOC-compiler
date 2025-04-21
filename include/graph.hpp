@@ -4,6 +4,7 @@
 #include "ir.hpp"
 #include "allocator.hpp"
 #include <unordered_map>
+#include <functional>
 
 class Scheduler;
 
