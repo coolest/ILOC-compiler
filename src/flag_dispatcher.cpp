@@ -242,21 +242,21 @@ void print_instruction(const IR& ir) {
                     << format_register(ir.args[2][IR_FIELD::PR])
                     << " // vr" << ir.args[0][IR_FIELD::VR] << ", vr"
                     << ir.args[1][IR_FIELD::VR] << " => vr"
-                    << ir.args[2][IR_FIELD::VR] << "\n";
+                    << ir.args[2][IR_FIELD::VR];
             break;
 
         case IR_OP_CODE::IR_LOAD:
             std::cout << "load " << format_register(ir.args[0][IR_FIELD::PR])
                     << " => " << format_register(ir.args[1][IR_FIELD::PR])
                     << " // vr" << ir.args[0][IR_FIELD::VR]
-                    << " => vr" << ir.args[1][IR_FIELD::VR] << "\n";
+                    << " => vr" << ir.args[1][IR_FIELD::VR];
             break;
 
         case IR_OP_CODE::IR_STORE:
             std::cout << "store " << format_register(ir.args[0][IR_FIELD::PR])
                     << " => " << format_register(ir.args[1][IR_FIELD::PR])
                     << " // vr" << ir.args[0][IR_FIELD::VR]
-                    << " => Mem[" << ir.args[1][IR_FIELD::VR] << "]\n";
+                    << " => Mem[" << ir.args[1][IR_FIELD::VR];
             break;
 
         case IR_OP_CODE::IR_LOADI:
@@ -267,12 +267,12 @@ void print_instruction(const IR& ir) {
             if (ir.args[1][IR_FIELD::PR] != 0) {
                 std::cout << " rematerialize pr" << ir.args[1][IR_FIELD::PR];
             }
-            std::cout << "\n";
+            //std::cout << "\n";
             break;
 
         case IR_OP_CODE::IR_OUTPUT:
             std::cout << "output " << ir.args[0][IR_FIELD::SR]
-                    << " // as in the input\n";
+                    << " // as in the input";
             break;
 
         default:
@@ -313,7 +313,6 @@ void FlagDispatch::allocate(int k, const std::string &filename){
 
 // LAB 3
 void FlagDispatch::schedule(const std::string &filename){
-    std::cout << "aaaa" << std::endl;
     Parser parser(filename);
 
     Allocator allocator;
@@ -322,14 +321,31 @@ void FlagDispatch::schedule(const std::string &filename){
             parser.parse() // Parse into an IR.
         );
 
-    std::cout << "aaaa" << std::endl;
     // Create graph
     DependenceGraph g;
     ir_nodepool = g.build_graph(std::move(ir_nodepool));
-    
-    std::cout << "aaaa" << std::endl;
 
     // Schedule...
     Scheduler scheduler(&g);
-    scheduler.schedule();
+    std::vector<std::vector<Node*>> schedule = scheduler.schedule();
+
+    for (std::vector<Node*> instruction : schedule){
+        std::cout << "[ ";
+
+        if (instruction[0]){
+            print_instruction(*instruction[0]->op);
+        } else {
+            std::cout << "nop";
+        }
+
+        std::cout << "; ";
+
+        if (instruction[1]){
+            print_instruction(*instruction[1]->op);
+        } else {
+            std::cout << "nop";
+        }
+
+        std::cout << " ]" << std::endl;
+    }
 }
