@@ -17,4 +17,6 @@ struct Allocator {
     Allocator();
 };
 
+void populate_behavior(bool is_def[], bool is_use[], IR& node);
+
 #endif

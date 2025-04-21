@@ -7,6 +7,13 @@
 int main(int argc, char* argv[]){
     FlagDispatch dispatch;
 
+    // LAB 3, just a gaurd then do what we have been doing
+    if (argc == 2){
+        dispatch.schedule(argv[1]);
+
+        return 1;
+    }
+
     if (argc <= 2){ // either -h or <filename>
         if (std::string(argv[1]) == "-h"){
             dispatch.help(); // help flag passed

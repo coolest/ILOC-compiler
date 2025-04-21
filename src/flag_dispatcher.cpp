@@ -4,6 +4,8 @@
 #include "parser.hpp"
 #include "token.hpp"
 #include "allocator.hpp"
+#include "graph.hpp"
+#include "scheduler.hpp"
 #include <string>
 #include <iostream>
 #include <chrono>
@@ -307,4 +309,27 @@ void FlagDispatch::allocate(int k, const std::string &filename){
 
         ir_raw_nodepool = ir_raw_nodepool->next;
     }
+}
+
+// LAB 3
+void FlagDispatch::schedule(const std::string &filename){
+    std::cout << "aaaa" << std::endl;
+    Parser parser(filename);
+
+    Allocator allocator;
+    std::unique_ptr<IR_NodePool> ir_nodepool =
+        allocator.rename( // Perform renaming pass
+            parser.parse() // Parse into an IR.
+        );
+
+    std::cout << "aaaa" << std::endl;
+    // Create graph
+    DependenceGraph g;
+    ir_nodepool = g.build_graph(std::move(ir_nodepool));
+    
+    std::cout << "aaaa" << std::endl;
+
+    // Schedule...
+    Scheduler scheduler(&g);
+    scheduler.schedule();
 }

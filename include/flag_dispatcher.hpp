@@ -15,6 +15,9 @@ struct FlagDispatch{
     // LAB 2
     void rename(const std::string &filename);
     void allocate(int k, const std::string &filename);
+
+    // LAB 3
+    void schedule(const std::string &filename);
 };
 
 #endif
